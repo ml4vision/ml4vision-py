@@ -208,7 +208,7 @@ class Client:
         project_data = self.get(f'/projects/?name={name}&owner={owner}')
         
         if len(project_data) == 0:
-            raise Exception(f'Found no project for owner: {owner}. If this is a shared project, please specify owner correctly')
+            raise Exception(f'Did not found project "{name}" for owner "{owner}". If this is a shared project, please specify the owner')
 
         return Project(self, **project_data[0])
 

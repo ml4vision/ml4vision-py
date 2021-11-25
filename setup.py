@@ -22,11 +22,13 @@ setuptools.setup(
     setup_requires=["wheel"],
     install_requires=[
         "tqdm",
-        "requests"
+        "requests",
+        "argcomplete"
     ],
     packages=[
         "ml4vision"
     ],
     classifiers=["Programming Language :: Python :: 3", "License :: OSI Approved :: MIT License"],
+    entry_points={"console_scripts": ["ml4vision=ml4vision.cli:main"]},
     python_requires=">=3.6",
 )
