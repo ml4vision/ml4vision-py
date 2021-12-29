@@ -2,8 +2,8 @@ from ml4vision.utils.colormap import get_colormap
 from PIL import Image
 import numpy as np
 
-def ann_to_mask(ann):
-    h, w = ann['size'][0], ann['size'][1]
+def ann_to_mask(ann, size):
+    w, h = size
     mask = np.zeros(w * h, dtype=np.uint8)
 
     index = 0
@@ -24,7 +24,7 @@ def annotations_to_mask(annotations, size):
     
     for i, ann in enumerate(annotations):
         x, y, w, h = ann['bbox']
-        mask = ann_to_mask(ann['segmentation'])
+        mask = ann_to_mask(ann['segmentation'], (w,h))
         label[y:y+h,x:x+w] += mask * (i+1)
     
     mask = Image.fromarray(label, mode='P')
