@@ -28,7 +28,8 @@ setuptools.setup(
         "pillow"
     ],
     packages=[
-        "ml4vision"
+        "ml4vision",
+        "ml4vision.utils"
     ],
     classifiers=["Programming Language :: Python :: 3", "License :: OSI Approved :: MIT License"],
     entry_points={"console_scripts": ["ml4vision=ml4vision.cli:main"]},
