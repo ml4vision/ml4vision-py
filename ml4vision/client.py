@@ -4,7 +4,8 @@ from urllib.request import urlretrieve
 import json
 from multiprocessing import Pool
 from tqdm import tqdm
-from itertools import repeat    
+from itertools import repeat   
+from ml4vision.utils import mask_utils 
 
 class Sample:
 
@@ -25,23 +26,35 @@ class Sample:
         self.label = sample_details['label']
         self.prediction = sample_details['prediction']
 
-    def pull(self, location='./'):
+    def pull(self, location='./', format='json'):
         asset_filename = self.asset['filename']
         asset_location = os.path.join(location, 'images', asset_filename)
         if not os.path.exists(asset_location):
             urlretrieve(self.asset['url'], asset_location)
 
         self.load_label_and_prediction()
-        if self.label or self.prediction is not None:
 
+        if format == "mask":
+            label_filename = os.path.splitext(asset_filename)[0] + '.png'
+            label_location = os.path.join(location, 'labels', label_filename)
+            size = self.metadata['size']
+            
+            if self.label or self.prediction:
+                mask = mask_utils.annotations_to_mask(self.label['annotations'] or self.prediction['annotations'], size)
+            else:
+                mask = mask_utils.empty_mask(size)
+
+            mask.save(label_location)
+
+        else: # json
             label_filename = os.path.splitext(asset_filename)[0] + '.json'
             label_location = os.path.join(location, 'labels', label_filename)
 
-            with open(label_location, 'w') as f:
-                if self.label:
-                    json.dump(self.label, f)
-                else:
-                    json.dump(self.prediction, f)
+            if self.label or self.prediction:
+                with open(label_location, 'w') as f:
+                    json.dump(self.label or self.prediction, f)
+
+
 
     def delete(self):
         self.client.delete(f'/samples/{self.uuid}/')
@@ -53,7 +66,7 @@ class Project:
         for key, value in project_data.items():
             setattr(self, key, value)
 
-    def pull(self, location='./', approved_only=False):
+    def pull(self, location='./', format="json", approved_only=False):
 
         dataset_loc = os.path.join(location, self.name)
         image_loc = os.path.join(dataset_loc, 'images')
@@ -71,7 +84,7 @@ class Project:
 
         print('Downloading your dataset...')
         with Pool(8) as p:
-            inputs = zip(samples, repeat(dataset_loc))
+            inputs = zip(samples, repeat(dataset_loc), repeat(format))
             r = p.starmap(Sample.pull, tqdm(inputs, total=len(samples)))
 
     def push(self, image_list):
@@ -128,7 +141,6 @@ class Project:
 
     def delete(self):
         self.client.delete(f'/projects/{self.uuid}/')
-
 
 class Client:
 

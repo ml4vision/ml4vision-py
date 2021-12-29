@@ -34,6 +34,12 @@ class Options:
             action="store_true",
             help="Pull only the approved samples"
         )
+        project_pull.add_argument(
+            "--format",
+            type=str,
+            default="json",
+            help="Label format, choices: json (default) | mask"
+        )
 
         ## project push
         project_push = project_action.add_parser("push", help="Push images to project")

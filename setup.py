@@ -23,7 +23,9 @@ setuptools.setup(
     install_requires=[
         "tqdm",
         "requests",
-        "argcomplete"
+        "argcomplete",
+        "numpy",
+        "pillow"
     ],
     packages=[
         "ml4vision"
