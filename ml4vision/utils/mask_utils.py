@@ -1,5 +1,5 @@
 from ml4vision.utils.colormap import get_colormap
-from rle_cython import compute_rle
+from ml4vision.utils.rle_cython import compute_rle
 from PIL import Image
 import numpy as np
 

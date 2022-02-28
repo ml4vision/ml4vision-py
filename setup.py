@@ -13,8 +13,8 @@ with open(Path(__file__).parent / "ml4vision" / "__init__.py", "r") as f:
     version = re.search(r'__version__\s*=\s*[\'"]([^\'"]*)[\'"]', content).group(1)
 
 extensions = [
-    Extension("rle_cython",
-        ["ml4vision/utils/cython/rle_cython.pyx"],
+    Extension(name="ml4vision.utils.*",
+        sources=["ml4vision/utils/*.pyx"],
         libraries=["m"],
         extra_compile_args=["-ffast-math"],
         include_dirs=[np.get_include()])
@@ -29,14 +29,13 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/ml4vision/ml4vision-py",
-    setup_requires=["wheel","Cython"],
+    setup_requires=["wheel","Cython","numpy"],
     install_requires=[
         "tqdm",
         "requests",
         "argcomplete",
         "numpy",
-        "pillow",
-        "Cython"
+        "pillow"
     ],
     packages=[
         "ml4vision",
@@ -46,4 +45,5 @@ setup(
     classifiers=["Programming Language :: Python :: 3", "License :: OSI Approved :: MIT License"],
     entry_points={"console_scripts": ["ml4vision=ml4vision.cli:main"]},
     python_requires=">=3.6",
+    package_data={"ml4vision.utils":["*.pyx"]}
 )
