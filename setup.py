@@ -29,7 +29,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/ml4vision/ml4vision-py",
-    setup_requires=["wheel"],
+    setup_requires=["wheel","Cython"],
     install_requires=[
         "tqdm",
         "requests",
