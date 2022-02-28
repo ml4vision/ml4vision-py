@@ -44,7 +44,7 @@ def pull_project(name, format, approved_only):
         print(e)
         sys.exit(1)
 
-def push_to_project(name, path):
+def push_to_project(name, path, label_path=None):
     client = _get_client()
     try:
         project = client.get_project_by_name(name)
@@ -59,8 +59,18 @@ def push_to_project(name, path):
         )
         for t in image_types:
             image_files.extend(glob.glob(os.path.join(path, t)))
+        image_files.sort()
 
-        project.push(image_files)
+        if label_path:
+            label_files = glob.glob(os.path.join(label_path, '*.png'))
+            label_files.sort()
+
+            assert len(image_files) == len(label_files), f'Number of images ({len(image_files)}) does not equal number of labels ({len(label_files)})'
+            project.push(image_files, label_files)
+        else:
+            project.push(image_files)
+
+
     except Exception as e:
         print(e)
         sys.exit(1)

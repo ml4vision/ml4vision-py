@@ -53,6 +53,11 @@ class Options:
             type=str,
             help="Path to image folder"
         )
+        project_push.add_argument(
+            "--label_path",
+            type=str,
+            help="Path to label folder"
+        )
 
         # version
         subparsers.add_parser("version", help="Print current version number")

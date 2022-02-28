@@ -27,7 +27,7 @@ def exec_command(args, parser):
         if args.action == "pull":
             cli_functions.pull_project(args.project, args.format, args.approved_only)
         elif args.action == "push":
-            cli_functions.push_to_project(args.project, args.path)
+            cli_functions.push_to_project(args.project, args.path, args.label_path)
         elif args.action == "list":
             cli_functions.list_projects()
 

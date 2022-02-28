@@ -6,6 +6,8 @@ from multiprocessing import Pool
 from tqdm import tqdm
 from itertools import repeat   
 from ml4vision.utils import mask_utils 
+from PIL import Image
+import numpy as np
 
 class Sample:
 
@@ -37,10 +39,10 @@ class Sample:
         if format == "mask":
             label_filename = os.path.splitext(asset_filename)[0] + '.png'
             label_location = os.path.join(location, 'labels', label_filename)
-            size = self.metadata['size']
+            size = self.asset['metadata']['size']
             
             if self.label or self.prediction:
-                mask = mask_utils.annotations_to_mask(self.label['annotations'] or self.prediction['annotations'], size)
+                mask = mask_utils.annotations_to_label(self.label['annotations'] or self.prediction['annotations'], size)
             else:
                 mask = mask_utils.empty_mask(size)
 
@@ -53,8 +55,6 @@ class Sample:
             if self.label or self.prediction:
                 with open(label_location, 'w') as f:
                     json.dump(self.label or self.prediction, f)
-
-
 
     def delete(self):
         self.client.delete(f'/samples/{self.uuid}/')
@@ -87,13 +87,15 @@ class Project:
             inputs = zip(samples, repeat(dataset_loc), repeat(format))
             r = p.starmap(Sample.pull, tqdm(inputs, total=len(samples)))
 
-    def push(self, image_list):
+    def push(self, image_list, label_list=None):
         
         print('Uploading data')
         with Pool(8) as p:
-            inputs = zip(repeat(self), image_list)
+            if label_list:
+                inputs = zip(repeat(self), image_list, label_list)
+            else:
+                inputs = zip(repeat(self), image_list)
             r = p.starmap(Project.create_sample, tqdm(inputs, total=len(image_list)))
-
 
     def list_samples(self, filter=None):
         samples = []
@@ -112,11 +114,12 @@ class Project:
         
         return samples
 
-    def create_sample(self, image_file):
+    def create_sample(self, image_file, label_file=None):
         # create asset
         filename = os.path.basename(image_file)
         payload = {
-            'filename': filename
+            'filename': filename,
+            'type': 'IMAGE'
         }
         asset_data = self.client.post(f'/assets/', payload=payload)
 
@@ -130,6 +133,9 @@ class Project:
         if response.status_code != 204:
             raise Exception(f"Failed uploading to s3, status_code: {response.status_code}")
 
+        # confirm upload
+        self.client.put(f'/assets/{asset_data["uuid"]}/confirm_upload/')
+
         # create sample
         payload = {
             'name': filename,
@@ -137,7 +143,15 @@ class Project:
         }
         sample_data = self.client.post(f'/projects/{self.uuid}/samples/', payload)
 
-        return Sample(client=self.client, **sample_data)
+        sample = Sample(client=self.client, **sample_data)
+
+        # upload label
+        if label_file:
+            label = np.array(Image.open(label_file))
+            annotations = mask_utils.label_to_annotations(label)
+            sample.update_label(annotations)
+
+        return sample
 
     def delete(self):
         self.client.delete(f'/projects/{self.uuid}/')
