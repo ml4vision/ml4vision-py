@@ -23,13 +23,13 @@ def exec_command(args, parser):
     if args.command == "version":
         print(__version__)
 
-    if args.command == "project": 
+    if args.command == "dataset": 
         if args.action == "pull":
-            cli_functions.pull_project(args.project, args.format, args.approved_only)
+            cli_functions.pull_dataset(args.dataset, args.format, args.approved_only)
         elif args.action == "push":
-            cli_functions.push_to_project(args.project, args.path, args.label_path)
+            cli_functions.push_to_dataset(args.dataset, args.path, args.label_path)
         elif args.action == "list":
-            cli_functions.list_projects()
+            cli_functions.list_datasets()
 
         
 if __name__ == "__main__":

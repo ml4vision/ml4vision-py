@@ -23,10 +23,9 @@ class Sample:
         label = self.client.put(f'/samples/{self.uuid}/label/', payload=payload)
         self.label = label
 
-    def load_label_and_prediction(self):
+    def load_label(self):
         sample_details = self.client.get(f'/samples/{self.uuid}/')
         self.label = sample_details['label']
-        self.prediction = sample_details['prediction']
 
     def pull(self, location='./', format='json'):
         asset_filename = self.asset['filename']
@@ -34,36 +33,31 @@ class Sample:
         if not os.path.exists(asset_location):
             urlretrieve(self.asset['url'], asset_location)
 
-        self.load_label_and_prediction()
+        self.load_label()
 
         if format == "mask":
             label_filename = os.path.splitext(asset_filename)[0] + '.png'
             label_location = os.path.join(location, 'labels', label_filename)
             size = self.asset['metadata']['size']
             
-            if self.label or self.prediction:
-                mask = mask_utils.annotations_to_label(self.label['annotations'] or self.prediction['annotations'], size)
-            else:
-                mask = mask_utils.empty_mask(size)
-
+            mask = mask_utils.annotations_to_label(self.label['annotations'], size)
             mask.save(label_location)
 
         else: # json
             label_filename = os.path.splitext(asset_filename)[0] + '.json'
             label_location = os.path.join(location, 'labels', label_filename)
 
-            if self.label or self.prediction:
-                with open(label_location, 'w') as f:
-                    json.dump(self.label or self.prediction, f)
+            with open(label_location, 'w') as f:
+                json.dump(self.label, f)
 
     def delete(self):
         self.client.delete(f'/samples/{self.uuid}/')
 
-class Project:
+class Dataset:
     
-    def __init__(self, client, **project_data):
+    def __init__(self, client, **dataset_data):
         self.client = client
-        for key, value in project_data.items():
+        for key, value in dataset_data.items():
             setattr(self, key, value)
 
     def pull(self, location='./', format="json", approved_only=False):
@@ -95,7 +89,7 @@ class Project:
                 inputs = zip(repeat(self), image_list, label_list)
             else:
                 inputs = zip(repeat(self), image_list)
-            r = p.starmap(Project.create_sample, tqdm(inputs, total=len(image_list)))
+            r = p.starmap(Dataset.create_sample, tqdm(inputs, total=len(image_list)))
 
     def list_samples(self, filter=None):
         samples = []
@@ -103,7 +97,7 @@ class Project:
         page=1
         while(True):
             try:
-                endpoint = f'/projects/{self.uuid}/samples/?page={page}'
+                endpoint = f'/datasets/{self.uuid}/samples/?page={page}'
                 if filter:
                     endpoint += ('&' + filter)
                 for sample in self.client.get(endpoint):
@@ -141,7 +135,7 @@ class Project:
             'name': filename,
             'asset': asset_data['uuid']
         }
-        sample_data = self.client.post(f'/projects/{self.uuid}/samples/', payload)
+        sample_data = self.client.post(f'/datasets/{self.uuid}/samples/', payload)
 
         sample = Sample(client=self.client, **sample_data)
 
@@ -154,7 +148,7 @@ class Project:
         return sample
 
     def delete(self):
-        self.client.delete(f'/projects/{self.uuid}/')
+        self.client.delete(f'/datasets/{self.uuid}/')
 
 class Client:
 
@@ -211,34 +205,34 @@ class Client:
 
         return headers
 
-    def list_projects(self):
-        projects = []
+    def list_datasets(self):
+        datasets = []
         
         page=1
         while(True):
             try:
-                for project_data in self.get(f'/projects/?page={page}'):
-                    projects.append(Project(self, **project_data))
+                for dataset_data in self.get(f'/datasets/?page={page}'):
+                    datasets.append(Dataset(self, **dataset_data))
                 page+=1
             except:
                 break
         
-        return projects
+        return datasets
 
-    def get_project_by_uuid(self, project_uuid):
-        project_data = self.get(f'/projects/{project_uuid}/')
-        return Project(self, **project_data)
+    def get_dataset_by_uuid(self, dataset_uuid):
+        dataset_data = self.get(f'/datasets/{dataset_uuid}/')
+        return Dataset(self, **dataset_data)
 
-    def get_project_by_name(self, name, owner=None):
+    def get_dataset_by_name(self, name, owner=None):
         owner = owner if owner else self.username
-        project_data = self.get(f'/projects/?name={name}&owner={owner}')
+        dataset_data = self.get(f'/datasets/?name={name}&owner={owner}')
         
-        if len(project_data) == 0:
-            raise Exception(f'Did not found project "{name}" for owner "{owner}". If this is a shared project, please specify the owner')
+        if len(dataset_data) == 0:
+            raise Exception(f'Did not found dataset "{name}" for owner "{owner}". If this is a shared or public dataset, please specify the owner')
 
-        return Project(self, **project_data[0])
+        return Dataset(self, **dataset_data[0])
 
-    def create_project(self, name, description='', categories=[{'id': 0, 'name': 'object'}] ,annotation_type='BBOX', model=''):
+    def create_dataset(self, name, description='', categories=[{'id': 0, 'name': 'object', 'has_instances': True}] ,annotation_type='BBOX'):
         payload = {
             'name': name,
             'description': description,
@@ -247,9 +241,7 @@ class Client:
             payload['categories'] = categories
         if annotation_type:
             payload['annotation_type'] = annotation_type
-        if model:
-            payload['model'] = model
+
+        dataset_data = self.post('/datasets/', payload)
         
-        project_data = self.post('/projects/', payload)
-        
-        return Project(self, **project_data)
+        return Dataset(self, **dataset_data)

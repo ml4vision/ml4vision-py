@@ -15,45 +15,45 @@ class Options:
         # authenticate
         subparsers.add_parser("authenticate", help="Store apikey for authentication.")
 
-        # project
-        project = subparsers.add_parser("project", help="Project related functions")
-        project_action = project.add_subparsers(dest="action")
+        # dataset
+        dataset = subparsers.add_parser("dataset", help="dataset related functions")
+        dataset_action = dataset.add_subparsers(dest="action")
 
-        ## project list
-        project_list = project_action.add_parser("list", help="List all projects")
+        ## dataset list
+        dataset_list = dataset_action.add_parser("list", help="List all datasets")
         
-        ## project pull
-        project_pull = project_action.add_parser("pull", help="Pull samples from project")
-        project_pull.add_argument(
-            "project",
+        ## dataset pull
+        dataset_pull = dataset_action.add_parser("pull", help="Pull samples from dataset")
+        dataset_pull.add_argument(
+            "dataset",
             type=str,
-            help="Name of project"
+            help="Name of dataset"
         )
-        project_pull.add_argument(
+        dataset_pull.add_argument(
             "--approved-only",
             action="store_true",
             help="Pull only the approved samples"
         )
-        project_pull.add_argument(
+        dataset_pull.add_argument(
             "--format",
             type=str,
             default="json",
             help="Label format, choices: json (default) | mask"
         )
 
-        ## project push
-        project_push = project_action.add_parser("push", help="Push images to project")
-        project_push.add_argument(
-            "project",
+        ## dataset push
+        dataset_push = dataset_action.add_parser("push", help="Push images to dataset")
+        dataset_push.add_argument(
+            "dataset",
             type=str,
-            help="Name of project"
+            help="Name of dataset"
         )
-        project_push.add_argument(
+        dataset_push.add_argument(
             "path",
             type=str,
             help="Path to image folder"
         )
-        project_push.add_argument(
+        dataset_push.add_argument(
             "--label_path",
             type=str,
             help="Path to label folder"

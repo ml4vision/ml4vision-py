@@ -35,19 +35,19 @@ def authenticate(apikey):
         print('API Key is invalid.')
         sys.exit(1)
 
-def pull_project(name, format, approved_only):
+def pull_dataset(name, format, approved_only):
     client = _get_client() 
     try:   
-        project = client.get_project_by_name(name)
-        project.pull(format=format, approved_only=approved_only)
+        dataset = client.get_dataset_by_name(name)
+        dataset.pull(format=format, approved_only=approved_only)
     except Exception as e:
         print(e)
         sys.exit(1)
 
-def push_to_project(name, path, label_path=None):
+def push_to_dataset(name, path, label_path=None):
     client = _get_client()
     try:
-        project = client.get_project_by_name(name)
+        dataset = client.get_dataset_by_name(name)
         
         image_files = []
         image_types = (
@@ -66,17 +66,17 @@ def push_to_project(name, path, label_path=None):
             label_files.sort()
 
             assert len(image_files) == len(label_files), f'Number of images ({len(image_files)}) does not equal number of labels ({len(label_files)})'
-            project.push(image_files, label_files)
+            dataset.push(image_files, label_files)
         else:
-            project.push(image_files)
+            dataset.push(image_files)
 
 
     except Exception as e:
         print(e)
         sys.exit(1)
 
-def list_projects():
+def list_datasets():
     client = _get_client()
-    projects = client.list_projects()
-    for proj in projects:
-        print(proj.name)
+    datasets = client.list_datasets()
+    for dts in datasets:
+        print(dts.name)
