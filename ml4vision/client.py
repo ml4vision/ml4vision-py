@@ -33,22 +33,23 @@ class Sample:
         if not os.path.exists(asset_location):
             urlretrieve(self.asset['url'], asset_location)
 
-        self.load_label()
+        if self.label is not None:
+            self.load_label()
 
-        if format == "mask":
-            label_filename = os.path.splitext(asset_filename)[0] + '.png'
-            label_location = os.path.join(location, 'labels', label_filename)
-            size = self.asset['metadata']['size']
-            
-            mask = mask_utils.annotations_to_label(self.label['annotations'], size)
-            mask.save(label_location)
+            if format == "mask":
+                label_filename = os.path.splitext(asset_filename)[0] + '.png'
+                label_location = os.path.join(location, 'labels', label_filename)
+                size = self.asset['metadata']['size']
+                
+                mask = mask_utils.annotations_to_label(self.label['annotations'], size)
+                mask.save(label_location)
 
-        else: # json
-            label_filename = os.path.splitext(asset_filename)[0] + '.json'
-            label_location = os.path.join(location, 'labels', label_filename)
+            else: # json
+                label_filename = os.path.splitext(asset_filename)[0] + '.json'
+                label_location = os.path.join(location, 'labels', label_filename)
 
-            with open(label_location, 'w') as f:
-                json.dump(self.label, f)
+                with open(label_location, 'w') as f:
+                    json.dump(self.label, f)
 
     def delete(self):
         self.client.delete(f'/samples/{self.uuid}/')
