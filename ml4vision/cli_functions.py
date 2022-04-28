@@ -35,11 +35,12 @@ def authenticate(apikey):
         print('API Key is invalid.')
         sys.exit(1)
 
-def pull_dataset(name, format, approved_only):
+def pull_dataset(name, images_only, labels_only, approved_only, labeled_only):
     client = _get_client() 
     try:   
         dataset = client.get_dataset_by_name(name)
-        dataset.pull(format=format, approved_only=approved_only)
+        dataset.load_samples(labeled_only=labeled_only, approved_only=approved_only)
+        dataset.pull(images_only=images_only, labels_only=labels_only)
     except Exception as e:
         print(e)
         sys.exit(1)

@@ -30,15 +30,24 @@ class Options:
             help="Name of dataset"
         )
         dataset_pull.add_argument(
+            "--images-only",
+            action="store_true",
+            help="Pull the images only"
+        )
+        dataset_pull.add_argument(
+            "--labels-only",
+            action="store_true",
+            help="Pull the labels only"
+        )
+        dataset_pull.add_argument(
             "--approved-only",
             action="store_true",
             help="Pull only the approved samples"
         )
         dataset_pull.add_argument(
-            "--format",
-            type=str,
-            default="json",
-            help="Label format, choices: json (default) | mask"
+            "--labeled-only",
+            action="store_true",
+            help="Pull only the labeled samples"
         )
 
         ## dataset push

@@ -9,7 +9,7 @@ def ann_to_mask(ann, size):
 
     index = 0
     zeros = True
-    for count in ann['rle']:
+    for count in ann['counts']:
         if not zeros:
             mask[index : index + count] = 1
         index+=count
@@ -21,21 +21,25 @@ def ann_to_mask(ann, size):
 def annotations_to_label(annotations, size):
 
     w, h = size
-    label = np.zeros((h, w), dtype=np.uint8)
-    
+    inst = np.zeros((h, w), dtype=np.uint16)
+    cls = np.zeros((h, w), dtype=np.uint8)
+
     for i, ann in enumerate(annotations):
         x, y, w, h = ann['bbox']
         mask = ann_to_mask(ann['segmentation'], (w,h))
-        label[y:y+h,x:x+w] += mask * (i+1)
-    
-    label = Image.fromarray(label, mode='P')
-    label.putpalette(get_colormap())
+        inst[y:y+h,x:x+w] += mask * (i+1) 
+        cls[y:y+h,x:x+w] += mask * ann["category_id"]
 
-    return label
+    cls = Image.fromarray(cls, mode='P')
+    cls.putpalette(get_colormap())
+
+    inst = Image.fromarray(inst, mode='I;16')
+
+    return inst, cls
 
 def get_rle(mask):
     counts = compute_rle(mask.flatten())
-    size = [mask.shape[1], mask.shape[0]]
+    size = [mask.shape[0], mask.shape[1]]
     return {"counts": counts, "size": size}
 
 def label_to_annotations(label):
@@ -58,11 +62,11 @@ def label_to_annotations(label):
             annotations.append(
                 {
                     'segmentation': {
-                        'rle': rle['counts'],
+                        'counts': rle['counts'],
                         'size': rle['size']
                     },
                     'bbox': [x_min, y_min, x_max - x_min + 1, y_max - y_min + 1],
-                    'category_id': 0
+                    'category_id': 1
                 }
             )
 

@@ -37,9 +37,15 @@ setup(
         "numpy",
         "pillow"
     ],
+    extras_require={
+        "ml": ["torch"],
+    },
     packages=[
         "ml4vision",
-        "ml4vision.utils"
+        "ml4vision.utils",
+        "ml4vision.ml",
+        "ml4vision.ml.datasets",
+        "ml4vision.ml.utils"
     ],
     ext_modules=cythonize(extensions),
     classifiers=["Programming Language :: Python :: 3", "License :: OSI Approved :: MIT License"],

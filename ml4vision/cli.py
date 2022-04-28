@@ -25,7 +25,7 @@ def exec_command(args, parser):
 
     if args.command == "dataset": 
         if args.action == "pull":
-            cli_functions.pull_dataset(args.dataset, args.format, args.approved_only)
+            cli_functions.pull_dataset(args.dataset, args.images_only, args.labels_only, args.approved_only, args.labeled_only)
         elif args.action == "push":
             cli_functions.push_to_dataset(args.dataset, args.path, args.label_path)
         elif args.action == "list":
