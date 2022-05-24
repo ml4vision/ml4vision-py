@@ -61,6 +61,7 @@ class ObjectDetectionVisualizer:
 
     def __init__(self, im_norm=True):
         plt.ion()
+        self.inline = 'inline' in matplotlib.get_backend()
         self.im_norm = im_norm
         self.colors = get_colors(float=True)[1:]
         self.window = plt.subplots(ncols=2)
@@ -87,7 +88,12 @@ class ObjectDetectionVisualizer:
             rect = Rectangle((box[0], box[1]), box[2]-box[0], box[3]-box[1], linewidth=1, edgecolor=self.colors[int(box[4])], facecolor='none')
             axs[1].add_patch(rect)
 
-        plt.draw()
+        if self.inline: 
+            display.clear_output(wait=True)
+            display.display(plt.gcf())
+        else:
+            plt.draw()
+            
         self.mypause(0.001)
 
     @staticmethod
