@@ -1,7 +1,7 @@
 import torch
 from .engine import Engine
-from utils.visualizer import SegmentationVisualizer
-from utils.iou_evaluator import IOUEvaluator
+from ..utils.visualizer import SegmentationVisualizer
+from ..utils.iou_evaluator import IOUEvaluator
 import os
 import json
 

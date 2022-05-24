@@ -1,8 +1,8 @@
 from .engine import Engine
-from utils.collate import box_collate_fn
-from utils.visualizer import ObjectDetectionVisualizer
-from utils.centernet.parse_detections import parse_detections, parse_batch_detections
-from utils.ap_metrics import APMeter
+from ..utils.collate import box_collate_fn
+from ..utils.visualizer import ObjectDetectionVisualizer
+from ..utils.centernet.parse_detections import parse_detections, parse_batch_detections
+from ..utils.ap_metrics import APMeter
 import torch
 import os
 import json

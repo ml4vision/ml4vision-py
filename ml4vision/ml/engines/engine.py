@@ -1,10 +1,10 @@
 import os
 import shutil
 import torch
-from datasets import get_dataset
-from models import get_model
-from losses import get_loss
-from utils.meters import AverageMeter
+from ..datasets import get_dataset
+from ..models import get_model
+from ..losses import get_loss
+from ..utils.meters import AverageMeter
 from tqdm import tqdm
 
 class Engine:

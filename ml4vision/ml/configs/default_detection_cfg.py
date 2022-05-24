@@ -1,6 +1,6 @@
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from utils.centernet.mapping import mapping as centernet_mapping
+from ..utils.centernet.mapping import mapping as centernet_mapping
 
 def get_config(client, name, owner=None, categories=[]):
 
