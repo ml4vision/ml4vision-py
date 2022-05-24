@@ -49,6 +49,7 @@ setup(
     packages=[
         "ml4vision",
         "ml4vision.utils",
+        "ml4vision.utils.centernet",
         "ml4vision.ml",
         "ml4vision.ml.configs",
         "ml4vision.ml.datasets",
