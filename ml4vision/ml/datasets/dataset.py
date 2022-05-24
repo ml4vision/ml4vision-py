@@ -12,8 +12,8 @@ from PIL import Image
 class ML4visionDataset(TorchDataset):
     def __init__(
         self,
-        client,
-        name,
+        client=None,
+        name='',
         owner=None,
         labeled_only=True,
         approved_only=False,
@@ -22,6 +22,7 @@ class ML4visionDataset(TorchDataset):
         cache_location="./dataset",
         fake_size=None,
         transform=None,
+        mapping=None
     ):
 
         dataset = client.get_dataset_by_name(name, owner=owner)
@@ -42,6 +43,7 @@ class ML4visionDataset(TorchDataset):
         self.size = len(self.dataset.samples)
         self.fake_size = fake_size
         self.transform = transform
+        self.mapping = mapping
 
     def __len__(self):
         return self.fake_size or self.size
@@ -89,7 +91,7 @@ class ObjectDetectionDataset(ML4visionDataset):
             boxes.append(box)
             category_ids.append(ann["category_id"] - 1)
 
-        return np.array(boxes), np.array(category_ids)
+        return boxes, category_ids
 
     def get_boxes(self, sample, im_w, im_h):
         label_filename = os.path.splitext(sample.asset["filename"])[0] + ".json"
@@ -114,15 +116,19 @@ class ObjectDetectionDataset(ML4visionDataset):
                 image=image, bboxes=boxes, category_ids=category_ids
             )
             image = transformed["image"]
-            im_h, im_w = image.shape[1:]
             boxes = transformed["bboxes"]
             category_ids = transformed["category_ids"]
 
-        return {
+        sample = {
             "image": image,
             "boxes": boxes,
             "category_ids": category_ids,
         }
+
+        if self.mapping:
+            sample = self.mapping(sample)
+
+        return sample
 
 
 class SegmentationDataset(ML4visionDataset):
@@ -153,10 +159,15 @@ class SegmentationDataset(ML4visionDataset):
             image = transformed["image"]
             label = transformed["mask"]
 
-        return {
+        sample = {
             "image": image,
             "label": label,
         }
+
+        if self.mapping:
+            sample = self.mapping(sample)
+
+        return sample
 
 
 class InstanceSegmentationDataset(ML4visionDataset):
@@ -187,4 +198,9 @@ class InstanceSegmentationDataset(ML4visionDataset):
             image = transformed["image"]
             cls_label, inst_label = transformed["masks"]
 
-        return {"image": image, "cls_label": cls_label, "inst_label": inst_label}
+        sample = {"image": image, "cls_label": cls_label, "inst_label": inst_label}
+
+        if self.mapping:
+            sample = self.mapping(sample)
+
+        return sample

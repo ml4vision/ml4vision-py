@@ -31,6 +31,7 @@ setup(
     url="https://github.com/ml4vision/ml4vision-py",
     setup_requires=["wheel","Cython","numpy"],
     install_requires=[
+        "Cython",
         "tqdm",
         "requests",
         "argcomplete",
@@ -38,13 +39,23 @@ setup(
         "pillow"
     ],
     extras_require={
-        "ml": ["torch"],
+        "ml": [
+            "torch",
+            "segmentation_models_pytorch",
+            "albumentations",
+            "brambox"
+        ],
     },
     packages=[
         "ml4vision",
         "ml4vision.utils",
         "ml4vision.ml",
+        "ml4vision.ml.configs",
         "ml4vision.ml.datasets",
+        "ml4vision.ml.engines",
+        "ml4vision.ml.losses",
+        "ml4vision.ml.models",
+
         "ml4vision.ml.utils"
     ],
     ext_modules=cythonize(extensions),

@@ -1,0 +1,107 @@
+import matplotlib
+import matplotlib.pyplot as plt
+from .image_utils import denormalize_img_tensor
+from .colorizer import Colorizer
+from .colors import get_colors
+from matplotlib.patches import Rectangle
+from IPython import display
+
+
+class SegmentationVisualizer:
+
+    def __init__(self, im_norm=True):
+        plt.ion()
+        self.inline = 'inline' in matplotlib.get_backend()
+        self.im_norm = im_norm
+        self.colorizer = Colorizer()
+        self.window = plt.subplots(ncols=3)
+
+    def display(self, image, pred, gt):
+        fig, axs = self.window
+        for ax in axs:
+            ax.cla()
+            ax.set_axis_off()
+
+        # display image
+        if self.im_norm:
+            image = image.squeeze_()
+            image = denormalize_img_tensor(image)
+        
+        axs[0].imshow(image.numpy().transpose(1,2,0))
+
+        # display pred
+        colored_pred = self.colorizer.colorize(pred)
+        axs[1].imshow(colored_pred.numpy().transpose(1,2,0))
+
+        # display gt
+        colored_gt = self.colorizer.colorize(gt)
+        axs[2].imshow(colored_gt.numpy().transpose(1,2,0))
+
+        if self.inline: 
+            display.clear_output(wait=True)
+            display.display(plt.gcf())
+        else:
+            plt.draw()
+        
+        self.mypause(0.001)
+
+    @staticmethod
+    def mypause(interval):
+        backend = plt.rcParams['backend']
+        if backend in matplotlib.rcsetup.interactive_bk:
+            figManager = matplotlib._pylab_helpers.Gcf.get_active()
+            if figManager is not None:
+                canvas = figManager.canvas
+                if canvas.figure.stale:
+                    canvas.draw()
+                canvas.start_event_loop(interval)
+                return
+
+class ObjectDetectionVisualizer:
+
+    def __init__(self, im_norm=True):
+        plt.ion()
+        self.im_norm = im_norm
+        self.colors = get_colors(float=True)[1:]
+        self.window = plt.subplots(ncols=2)
+
+    def display(self, image, pred, gt):
+        fig, axs = self.window
+        for ax in axs:
+            ax.cla()
+            ax.set_axis_off()
+
+        if self.im_norm:
+            image = image.squeeze_()
+            image = denormalize_img_tensor(image)
+
+        # display pred
+        axs[0].imshow(image.numpy().transpose(1,2,0))
+        for box in pred.numpy():
+            rect = Rectangle((box[0], box[1]), box[2]-box[0], box[3]-box[1], linewidth=1, edgecolor=self.colors[int(box[4])], facecolor='none')
+            axs[0].add_patch(rect)
+
+        # display gt
+        axs[1].imshow(image.numpy().transpose(1,2,0))
+        for box in gt.numpy():
+            rect = Rectangle((box[0], box[1]), box[2]-box[0], box[3]-box[1], linewidth=1, edgecolor=self.colors[int(box[4])], facecolor='none')
+            axs[1].add_patch(rect)
+
+        plt.draw()
+        self.mypause(0.001)
+
+    @staticmethod
+    def mypause(interval):
+        backend = plt.rcParams['backend']
+        if backend in matplotlib.rcsetup.interactive_bk:
+            figManager = matplotlib._pylab_helpers.Gcf.get_active()
+            if figManager is not None:
+                canvas = figManager.canvas
+                if canvas.figure.stale:
+                    canvas.draw()
+                canvas.start_event_loop(interval)
+                return
+
+
+
+

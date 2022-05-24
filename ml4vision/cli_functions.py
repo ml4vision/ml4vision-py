@@ -63,7 +63,13 @@ def push_to_dataset(name, path, label_path=None):
         image_files.sort()
 
         if label_path:
-            label_files = glob.glob(os.path.join(label_path, '*.png'))
+            label_files = []
+            label_types = (
+                '*.png', '*.PNG',
+                '*tif', '*.TIF'
+            )
+            for t in label_types:
+                label_files.extend(glob.glob(os.path.join(label_path, t)))
             label_files.sort()
 
             assert len(image_files) == len(label_files), f'Number of images ({len(image_files)}) does not equal number of labels ({len(label_files)})'
