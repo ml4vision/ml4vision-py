@@ -40,10 +40,11 @@ setup(
     ],
     extras_require={
         "ml": [
-            "torch",
-            "segmentation_models_pytorch",
-            "albumentations",
-            "brambox"
+            "torch>=1.9.0",
+            "torchvision>=0.10.0",
+            "segmentation_models_pytorch>=0.10.0",
+            "albumentations>=0.5.2",
+            "brambox>=3.2.0"
         ],
     },
     packages=[
