@@ -42,9 +42,9 @@ setup(
         "ml": [
             "torch>=1.9.0",
             "torchvision>=0.10.0",
-            "segmentation_models_pytorch>=0.10.0",
-            "albumentations>=0.5.2",
-            "brambox>=3.2.0"
+            "segmentation_models_pytorch>=0.2.1",
+            "albumentations>=1.1.0",
+            "brambox>=4.0.0"
         ],
     },
     packages=[
