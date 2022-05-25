@@ -4,7 +4,7 @@ from .image_utils import denormalize_img_tensor
 from .colorizer import Colorizer
 from .colors import get_colors
 from matplotlib.patches import Rectangle
-from IPython import display
+from IPython import display as idisplay
 
 
 class SegmentationVisualizer:
@@ -12,6 +12,7 @@ class SegmentationVisualizer:
     def __init__(self, im_norm=True):
         plt.ion()
         self.inline = 'inline' in matplotlib.get_backend()
+        self.dh = None
         self.im_norm = im_norm
         self.colorizer = Colorizer()
         self.window = plt.subplots(ncols=3)
@@ -38,8 +39,10 @@ class SegmentationVisualizer:
         axs[2].imshow(colored_gt.numpy().transpose(1,2,0))
 
         if self.inline: 
-            display.clear_output(wait=True)
-            display.display(plt.gcf())
+            if self.dh:
+                self.dh.update(fig)
+            else:
+                self.dh = idisplay.display(fig, display_id=True)
         else:
             plt.draw()
         
@@ -62,6 +65,7 @@ class ObjectDetectionVisualizer:
     def __init__(self, im_norm=True):
         plt.ion()
         self.inline = 'inline' in matplotlib.get_backend()
+        self.dh = None
         self.im_norm = im_norm
         self.colors = get_colors(float=True)[1:]
         self.window = plt.subplots(ncols=2)
@@ -89,8 +93,10 @@ class ObjectDetectionVisualizer:
             axs[1].add_patch(rect)
 
         if self.inline: 
-            display.clear_output(wait=True)
-            display.display(plt.gcf())
+            if self.dh:
+                self.dh.update(fig)
+            else:
+                self.dh = idisplay.display(fig, display_id=True)
         else:
             plt.draw()
             
