@@ -4,7 +4,7 @@ import json
 def upload_model(client, config, model_name=None):
 
     model_name = model_name or f"{config['train_dataset']['kwargs']['name']}-model"
-    annotation_type = "BBOX" if config["engine"] == 'detection' else "SEGMENTATION"
+    annotation_type = "BBOX" if config["task"] == 'detection' else "SEGMENTATION"
     architecture = 'object_detection_fn' if annotation_type == "BBOX" else "segmentation_fn"
 
     model = client.get_or_create_model(

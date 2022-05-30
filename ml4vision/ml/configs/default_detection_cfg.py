@@ -35,7 +35,7 @@ def get_config(client, name, owner=None, categories=[]):
                         A.Flip(p=0.5),
                         A.Normalize(),
                         ToTensorV2(),
-                    ], bbox_params=A.BboxParams('pascal_voc', label_fields=['category_ids'], min_visibility=0.35)),
+                    ], bbox_params=A.BboxParams('pascal_voc', label_fields=['category_ids'], min_visibility=0.1)),
                 'mapping': centernet_mapping
             },
             'batch_size': 4,
@@ -59,7 +59,7 @@ def get_config(client, name, owner=None, categories=[]):
                         A.PadIfNeeded(min_height=None, min_width=None, pad_height_divisor=32,pad_width_divisor=32),
                         A.Normalize(),
                         ToTensorV2(),
-                    ], bbox_params=A.BboxParams('pascal_voc', label_fields=['category_ids'], min_visibility=0.35)),
+                    ], bbox_params=A.BboxParams('pascal_voc', label_fields=['category_ids'], min_visibility=0.1)),
                 'mapping': centernet_mapping
             },
             'batch_size': 4,
