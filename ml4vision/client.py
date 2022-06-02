@@ -404,10 +404,11 @@ class Client:
         return MLModel(self, **model_data[0])
 
 
-    def create_model(self, name, description='', categories=[] ,annotation_type='BBOX', architecture=''):
+    def create_model(self, name, description='', dataset=None, categories=[] ,annotation_type='BBOX', architecture=''):
         payload = {
             'name': name,
             'description': description,
+            'dataset': dataset,
             'categories': categories,
             'annotation_type': annotation_type,
             'architecture': architecture

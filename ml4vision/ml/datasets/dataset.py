@@ -20,7 +20,7 @@ class ML4visionDataset(TorchDataset):
         split=False,
         train=True,
         cache_location="./dataset",
-        fake_size=None,
+        min_size=None,
         transform=None,
         mapping=None
     ):
@@ -41,15 +41,15 @@ class ML4visionDataset(TorchDataset):
         self.dataset = dataset
         self.dataset_loc = dataset_loc
         self.size = len(self.dataset.samples)
-        self.fake_size = fake_size
+        self.min_size = min_size
         self.transform = transform
         self.mapping = mapping
 
     def __len__(self):
-        return self.fake_size or self.size
+        return self.min_size or self.size
 
     def get_index(self, index):
-        if self.fake_size:
+        if self.min_size:
             index = random.randint(0, self.size - 1) if self.size > 1 else 0
         return index
 

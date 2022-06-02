@@ -1,6 +1,7 @@
 import os
 import shutil
 import torch
+from ..configs import det_config, segm_config
 from ..datasets import get_dataset
 from ..models import get_model
 from ..losses import get_loss
@@ -10,7 +11,8 @@ from tqdm import tqdm
 class Engine:
 
     def __init__(self, config, device=None):
-        self.config = config
+
+        self.config = det_config.get_det_config(config) if config.task == 'detection' else segm_config.get_segm_config(config)
         self.device = device if device else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         self.setup()
@@ -49,9 +51,9 @@ class Engine:
         model = get_model(cfg['model']['name'], cfg['model']['kwargs'], cfg['model'].get('init_output')).to(self.device)
 
         # load checkpoint
-        if cfg['model_path'] is not None and os.path.exists(cfg['model_path']):
-            print(f'Loading model from {cfg["model_path"]}')
-            state = torch.load(cfg['model_path'])
+        if cfg['weights'] is not None and os.path.exists(cfg['weights']):
+            print(f'Loading model from {cfg["weights"]}')
+            state = torch.load(cfg['weights'])
             model.load_state_dict(state['model_state_dict'], strict=True)
 
         return model

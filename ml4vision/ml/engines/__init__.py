@@ -7,4 +7,4 @@ def get_engine(config):
     elif config['task'] == 'segmentation':
         return SegmentationEngine(config)
     else:
-        RuntimeError(f'Engine of type {config["egine"]} is not available.')
+        RuntimeError(f'Engine of type {config["task"]} is not available.')
