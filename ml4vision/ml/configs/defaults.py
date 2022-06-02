@@ -51,7 +51,7 @@ def get_default_config(client, dataset_name, dataset_owner=None):
 
             dataloader = Node(dict(
                 train_batch_size = 4,
-                val_batch_size = 4,
+                val_batch_size = 1,
                 train_num_workers = 4,
                 val_num_workers = 4
             )),
@@ -74,7 +74,8 @@ def get_default_config(client, dataset_name, dataset_owner=None):
                 min_size = 512,
                 crop = True,
                 crop_size = 256,
-                flip = True
+                flip_horizontal = True,
+                flip_vertical = True
             ))
         )
     )
