@@ -75,7 +75,8 @@ def get_default_config(client, dataset_name, dataset_owner=None):
                 crop = True,
                 crop_size = 256,
                 flip_horizontal = True,
-                flip_vertical = True
+                flip_vertical = True,
+                random_brightness_contrast = True,
             ))
         )
     )
