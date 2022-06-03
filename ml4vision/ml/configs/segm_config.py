@@ -83,8 +83,12 @@ def get_train_transform(config):
         min_size = crop_size - crop_size * 0.15
         max_size = crop_size + crop_size * 0.15
         transform_list.append(A.RandomSizedCrop([int(min_size),int(max_size)],config.transform.crop_size,config.transform.crop_size))
-    if config.transform.flip:
-        transform_list.append(A.Flip(p=0.5))
+    if config.transform.flip_horizontal:
+        transform_list.append(A.HorizontalFlip(p=0.5))
+    if config.transform.flip_vertical:
+        transform_list.append(A.VerticalFlip(p=0.5))
+    if config.transform.random_brightness_contrast:
+        transform_list.append(A.RandomBrightnessContrast(p=0.5))
     
     transform_list.extend([
         A.PadIfNeeded(min_height=None, min_width=None, pad_height_divisor=32,pad_width_divisor=32),
