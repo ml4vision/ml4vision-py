@@ -10,11 +10,11 @@ class SegmentationEngine(Engine):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.binary = self.config['model']['kwargs']['classes'] == 1
+        self.binary = len(self.config.dataset_info['categories']) == 1
         self.visualizer = SegmentationVisualizer()
 
-        n_classes = self.config['model']['kwargs']['classes']
-        ignore_index = self.config['loss_fn'].get('kwargs',{}).get('ignore_index', -1)
+        n_classes = len(self.config.dataset_info['categories'])
+        ignore_index = self.config.loss.params.get('ignore_index', -1)
         self.iou_meter = IOUEvaluator(n_classes + 1 if self.binary else n_classes,
                                 ignore_index=ignore_index)
 
@@ -67,15 +67,15 @@ class SegmentationEngine(Engine):
 
         # load best checkpoint
         model = self.model.to(torch.device('cpu'))
-        state = torch.load(os.path.join(cfg['save_dir'], 'best_val_model.pth'), map_location=torch.device('cpu'))
+        state = torch.load(os.path.join(cfg.save_location, 'best_val_model.pth'), map_location=torch.device('cpu'))
         model.load_state_dict(state['model_state_dict'], strict=True)
         model.eval()
 
         traced_model = torch.jit.trace(model, torch.randn(1, 3, 512, 512))
-        traced_model.save(os.path.join(cfg['save_dir'], 'best_val_model.pt'))
+        traced_model.save(os.path.join(cfg.save_location, 'best_val_model.pt'))
 
-        with open(os.path.join(cfg['save_dir'], 'metrics.json'), 'w') as f:
+        with open(os.path.join(cfg.save_location, 'metrics.json'), 'w') as f:
             json.dump(state['metrics'], f)
 
-        with open(os.path.join(cfg['save_dir'], 'categories.json'), 'w') as f:
-            json.dump(cfg['categories'], f)
+        with open(os.path.join(cfg.save_location, 'categories.json'), 'w') as f:
+            json.dump(cfg.dataset_info['categories'], f)

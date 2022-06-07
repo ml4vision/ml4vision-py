@@ -1,111 +1,99 @@
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
-from ..utils.centernet.mapping import mapping as centernet_mapping
+from .node import Node
 
-def get_segm_config(config):
+def get_segm_config(dataset):
 
-    engine_config = dict(
-        categories = config.dataset.categories,
+    client = dataset.client
+    dataset_name = dataset.name
+    dataset_owner = dataset.owner['username']   
+    categories = dataset.categories
 
-        save = config.save,
-        save_dir = config.save_location,
-    
-        display = config.display,
-        display_it = config.display_it,
+    binary = len(categories) == 1
 
-        weights = config.weights,
+    cfg = Node(
+        dict(
+            client = client,
 
-        train_dataset = {
-            'name': 'segmentation',
-            'kwargs': {
-                'client': config.client,
-                'name': config.dataset.name,
-                'owner': config.dataset.owner,
-                'labeled_only': config.dataset.labeled_only,
-                'approved_only': config.dataset.approved_only,
-                'split': True,
-                'train': True,
-                'cache_location': config.dataset.cache_location,
-                'min_size': config.dataset.min_size,
-                'ignore_zero': True if len(config.dataset.categories) > 1 else False,
-                'transform': get_train_transform(config),
-            },
-            'batch_size': config.dataloader.train_batch_size,
-            'workers': config.dataloader.train_num_workers
-        }, 
+            dataset_info = dict(
+                name = dataset_name,
+                owner = dataset_owner,
+                categories = categories
+            ),
 
-        val_dataset = {
-            'name': 'segmentation',
-            'kwargs': {
-                'client': config.client,
-                'name': config.dataset.name,
-                'owner': config.dataset.owner,
-                'labeled_only': config.dataset.labeled_only,
-                'approved_only': config.dataset.approved_only,
-                'split': True,
-                'train': False,
-                'cache_location': config.dataset.cache_location,
-                'ignore_zero': True if len(config.dataset.categories) > 1 else False,
-                'transform': get_val_transform(config),
-            },
-            'batch_size': config.dataloader.val_batch_size,
-            'workers': config.dataloader.val_num_workers
-        }, 
+            task = 'segmentation',
 
-        model = {
-            'name': config.model.name,
-            'kwargs': dict(
-                **config.model.kwargs,
-                classes = len(config.dataset.categories)
-            )
-        },
+            save = True,
+            save_location = './output',
 
-        loss_fn = {
-            'name': 'crossentropy' if len(config.dataset.categories) > 1 else 'bcedice',
-            'kwargs': {
-                'ignore_index': 255
-            }
-        },
+            display = True,
+            display_it = 50,
 
-        lr = config.solver.lr,
-        n_epochs = config.solver.num_epochs
+            pretrained_model = None,
+
+            train_dataset = Node(dict(
+                name = 'segmentation',
+                params = Node(dict(
+                    client = client,
+                    name = dataset_name,
+                    owner = dataset_owner,
+                    labeled_only = True,
+                    approved_only = False,
+                    split = True,
+                    train = True,
+                    cache_location = './dataset',
+                    min_size = 1000,
+                    ignore_zero = False if binary else True,
+                )),
+                batch_size = 4,
+                num_workers = 4
+            )),
+
+            val_dataset = Node(dict(
+                name = 'segmentation',
+                params = Node(dict(
+                    client = client,
+                    name = dataset_name,
+                    owner = dataset_owner,
+                    labeled_only = True,
+                    approved_only = False,
+                    split = True,
+                    train = False,
+                    cache_location = './dataset',
+                    ignore_zero = False if binary else True,
+                )),
+                batch_size = 1,
+                num_workers = 4
+            )),
+
+            model = Node(dict(
+                name = 'unet',
+                params = Node(dict(
+                    encoder_name = 'resnet18',
+                    classes = len(categories),
+                )),
+            )),
+
+            loss = Node(dict(
+                name = 'bcedice' if binary else 'crossentropy',
+                params = Node(dict(
+                    ignore_index = 255
+                ))
+            )),
+
+            solver = Node(dict(
+                lr = 5e-4,
+                num_epochs = 10
+            )),
+
+            transform = Node(dict(
+                resize = True,
+                min_size = 512,
+                random_crop = True,
+                crop_size = 256,
+                flip_horizontal = True,
+                flip_vertical = True,
+                random_brightness_contrast = True,
+            ))
+        )
     )
 
-    return engine_config
-
-def get_train_transform(config):
-    transform_list = []
-    
-    if config.transform.resize:
-        transform_list.append(A.SmallestMaxSize(max_size=config.transform.min_size))
-    if config.transform.crop:
-        crop_size = config.transform.crop_size
-        min_size = crop_size - crop_size * 0.15
-        max_size = crop_size + crop_size * 0.15
-        transform_list.append(A.RandomSizedCrop([int(min_size),int(max_size)],config.transform.crop_size,config.transform.crop_size))
-    if config.transform.flip_horizontal:
-        transform_list.append(A.HorizontalFlip(p=0.5))
-    if config.transform.flip_vertical:
-        transform_list.append(A.VerticalFlip(p=0.5))
-    if config.transform.random_brightness_contrast:
-        transform_list.append(A.RandomBrightnessContrast(p=0.5))
-    
-    transform_list.extend([
-        A.PadIfNeeded(min_height=None, min_width=None, pad_height_divisor=32,pad_width_divisor=32),
-        A.Normalize(),
-        ToTensorV2(),
-    ])
-
-    transform = A.Compose(transform_list)
-
-    return transform
-
-def get_val_transform(config):
-    transform = A.Compose([
-        A.SmallestMaxSize(max_size=config.transform.min_size),
-        A.PadIfNeeded(min_height=None, min_width=None, pad_height_divisor=32,pad_width_divisor=32),
-        A.Normalize(),
-        ToTensorV2(),
-    ])
-
-    return transform
+    return cfg

@@ -1,18 +1,18 @@
 import os
 import shutil
 import torch
-from ..configs import det_config, segm_config
 from ..datasets import get_dataset
 from ..models import get_model
 from ..losses import get_loss
 from ..utils.meters import AverageMeter
+from ..utils.transforms import get_train_transform, get_val_transform
 from tqdm import tqdm
 
 class Engine:
 
     def __init__(self, config, device=None):
 
-        self.config = det_config.get_det_config(config) if config.task == 'detection' else segm_config.get_segm_config(config)
+        self.config = config
         self.device = device if device else torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         self.setup()
@@ -21,8 +21,8 @@ class Engine:
         cfg = self.config
 
         # create output dir
-        if cfg['save']:
-            os.makedirs(cfg['save_dir'], exist_ok=True)
+        if cfg.save:
+            os.makedirs(cfg.save_location, exist_ok=True)
 
         self.train_dataset_it, self.val_dataset_it = self.get_dataloaders()
         self.model = self.get_model()
@@ -32,28 +32,32 @@ class Engine:
     def get_dataloaders(self):
         cfg = self.config
 
+        train_transform = get_train_transform(cfg.transform, cfg.task)
         train_dataset = get_dataset(
-            cfg['train_dataset']['name'], cfg['train_dataset']['kwargs'])
+            cfg.train_dataset.name, cfg.train_dataset.params)
+        train_dataset.transform = train_transform
         train_dataset_it = torch.utils.data.DataLoader(
-            train_dataset, batch_size=cfg['train_dataset']['batch_size'], shuffle=True, drop_last=True, num_workers=cfg['train_dataset']['workers'], pin_memory=True if self.device.type == 'cuda' else False)
+            train_dataset, batch_size=cfg.train_dataset.batch_size, shuffle=True, drop_last=True, num_workers=cfg.train_dataset.num_workers, pin_memory=True if self.device.type == 'cuda' else False)
 
         # val dataloader
+        val_transform = get_val_transform(cfg.transform, cfg.task)
         val_dataset = get_dataset(
-            cfg['val_dataset']['name'], cfg['val_dataset']['kwargs'])
+            cfg.val_dataset.name, cfg.val_dataset.params)
+        val_dataset.transform = val_transform
         val_dataset_it = torch.utils.data.DataLoader(
-            val_dataset, batch_size=cfg['val_dataset']['batch_size'], shuffle=False, drop_last=False, num_workers=cfg['val_dataset']['workers'], pin_memory=True if self.device.type == 'cuda' else False)
+            val_dataset, batch_size=cfg.val_dataset.batch_size, shuffle=False, drop_last=False, num_workers=cfg.val_dataset.num_workers, pin_memory=True if self.device.type == 'cuda' else False)
 
         return train_dataset_it, val_dataset_it
 
     def get_model(self):
         cfg = self.config
 
-        model = get_model(cfg['model']['name'], cfg['model']['kwargs'], cfg['model'].get('init_output')).to(self.device)
+        model = get_model(cfg.model.name, cfg.model.params, cfg.model.get('init_output')).to(self.device)
 
         # load checkpoint
-        if cfg['weights'] is not None and os.path.exists(cfg['weights']):
-            print(f'Loading model from {cfg["weights"]}')
-            state = torch.load(cfg['weights'])
+        if cfg.pretrained_model is not None and os.path.exists(cfg.pretrained_model):
+            print(f'Loading model from {cfg.pretrained_model}')
+            state = torch.load(cfg.pretrained_model)
             model.load_state_dict(state['model_state_dict'], strict=True)
 
         return model
@@ -61,16 +65,16 @@ class Engine:
     def get_loss(self):
         cfg = self.config
 
-        loss_fn = get_loss(cfg['loss_fn']['name'], cfg['loss_fn'].get('kwargs', {}))
+        loss_fn = get_loss(cfg.loss.name, cfg.loss.get('params'))
 
         return loss_fn
 
     def get_optimizer_and_scheduler(self):
         cfg = self.config
 
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=cfg['lr'])
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=cfg.solver.lr)
 
-        lr_lambda = lambda epoch: (1 - (epoch/cfg['n_epochs'])) ** 0.9
+        lr_lambda = lambda epoch: (1 - (epoch/cfg.solver.num_epochs)) ** 0.9
         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
 
         return optimizer, scheduler
@@ -109,7 +113,7 @@ class Engine:
 
             loss_meter.update(loss.item())
 
-            if cfg['display'] and i % cfg['display_it'] == 0:
+            if cfg.display and i % cfg.display_it == 0:
                 with torch.no_grad():
                     self.display(pred, sample)
 
@@ -129,7 +133,7 @@ class Engine:
                 pred, loss = self.forward(sample)
                 loss_meter.update(loss.item())
 
-                if cfg['display'] and i % cfg['display_it'] == 0:
+                if cfg.display and i % cfg.display_it == 0:
                     self.display(pred, sample)
 
                 self.compute_metrics(pred, sample)
@@ -150,20 +154,20 @@ class Engine:
         }
 
         print("=> saving checkpoint")
-        file_name = os.path.join(cfg['save_dir'], "checkpoint.pth")
+        file_name = os.path.join(cfg.save_location, "checkpoint.pth")
         torch.save(state, file_name)
        
         if best_val:
             print("=> saving best_val checkpoint")
             shutil.copyfile(
-                file_name, os.path.join(cfg['save_dir'], "best_val_model.pth")
+                file_name, os.path.join(cfg.save_location, "best_val_model.pth")
             )
 
     def train(self):
         cfg = self.config
     
         best_val_loss = float('inf')
-        for epoch in range(cfg['n_epochs']):
+        for epoch in range(cfg.solver.num_epochs):
             print(f'Starting epoch {epoch}')
 
             train_loss = self.train_step()
