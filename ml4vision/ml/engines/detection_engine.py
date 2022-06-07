@@ -69,5 +69,4 @@ class DetectionEngine(Engine):
             json.dump(state['metrics'], f)
 
         with open(os.path.join(cfg.save_location, 'categories.json'), 'w') as f:
-            json.dump(cfg['categories'], f)
-
+            json.dump(cfg.dataset_info['categories'], f)
