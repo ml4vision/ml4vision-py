@@ -1,11 +1,11 @@
 from .node import Node
 
-def get_segm_config(dataset):
+def get_segm_config(project):
 
-    client = dataset.client
-    dataset_name = dataset.name
-    dataset_owner = dataset.owner['username']   
-    categories = dataset.categories
+    client = project.client
+    project_name = project.name
+    project_owner = project.owner['username']   
+    categories = project.categories
 
     binary = len(categories) == 1
 
@@ -13,9 +13,9 @@ def get_segm_config(dataset):
         dict(
             client = client,
 
-            dataset_info = dict(
-                name = dataset_name,
-                owner = dataset_owner,
+            project_info = dict(
+                name = project_name,
+                owner = project_owner,
                 categories = categories
             ),
 
@@ -33,8 +33,8 @@ def get_segm_config(dataset):
                 name = 'segmentation',
                 params = Node(dict(
                     client = client,
-                    name = dataset_name,
-                    owner = dataset_owner,
+                    name = project_name,
+                    owner = project_owner,
                     labeled_only = True,
                     approved_only = False,
                     split = True,
@@ -51,8 +51,8 @@ def get_segm_config(dataset):
                 name = 'segmentation',
                 params = Node(dict(
                     client = client,
-                    name = dataset_name,
-                    owner = dataset_owner,
+                    name = project_name,
+                    owner = project_owner,
                     labeled_only = True,
                     approved_only = False,
                     split = True,

@@ -25,22 +25,22 @@ class ML4visionDataset(TorchDataset):
         mapping=None
     ):
 
-        dataset = client.get_dataset_by_name(name, owner=owner)
-        dataset.load_samples(labeled_only=labeled_only, approved_only=approved_only)
+        project = client.get_project_by_name(name, owner=owner)
+        project.load_samples(labeled_only=labeled_only, approved_only=approved_only)
 
         if split:
-            n_samples = len(dataset.samples)
-            dataset.samples = (
-                dataset.samples[0 : int(n_samples * 0.8)]
+            n_samples = len(project.samples)
+            project.samples = (
+                project.samples[0 : int(n_samples * 0.8)]
                 if train
-                else dataset.samples[int(n_samples * 0.8) :]
+                else project.samples[int(n_samples * 0.8) :]
             )
 
-        dataset_loc = dataset.pull(location=cache_location)
+        dataset_loc = project.pull(location=cache_location)
 
-        self.dataset = dataset
+        self.project = project
         self.dataset_loc = dataset_loc
-        self.size = len(self.dataset.samples)
+        self.size = len(self.project.samples)
         self.min_size = min_size
         self.transform = transform
         self.mapping = mapping
@@ -104,7 +104,7 @@ class ObjectDetectionDataset(ML4visionDataset):
     def __getitem__(self, index):
 
         index = self.get_index(index)
-        sample = self.dataset.samples[index]
+        sample = self.project.samples[index]
 
         image = np.array(self.get_image(sample))
         im_h, im_w = image.shape[:-1]
@@ -149,7 +149,7 @@ class SegmentationDataset(ML4visionDataset):
 
     def __getitem__(self, index):
         index = self.get_index(index)
-        sample = self.dataset.samples[index]
+        sample = self.project.samples[index]
 
         image = np.array(self.get_image(sample))
         label = self.get_label(sample)
@@ -188,7 +188,7 @@ class InstanceSegmentationDataset(ML4visionDataset):
 
     def __getitem__(self, index):
         index = self.get_index(index)
-        sample = self.dataset.samples[index]
+        sample = self.project.samples[index]
 
         image = np.array(self.get_image(sample))
         cls_label, inst_label = self.get_label(sample)

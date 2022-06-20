@@ -116,23 +116,23 @@ class Sample:
     def delete(self):
         self.client.delete(f'/samples/{self.uuid}/')
 
-class Dataset:
+class Project:
     
-    def __init__(self, client, **dataset_data):
+    def __init__(self, client, **project_data):
         self.client = client
-        for key, value in dataset_data.items():
+        for key, value in project_data.items():
             setattr(self, key, value)
 
     def pull(self, location='./', as_json=False, images_only=False, labels_only=False):
-        dataset_loc = os.path.join(location, self.name)
+        project_loc = os.path.join(location, self.name)
 
         if format == 'coco':
-            image_loc = os.path.join(dataset_loc, 'images')
+            image_loc = os.path.join(project_loc, 'images')
             os.makedirs(image_loc, exist_ok=True)
             
             print('Loading images')
             with Pool(8) as p:
-                inputs = zip(self.samples, repeat(dataset_loc))
+                inputs = zip(self.samples, repeat(project_loc))
                 r = p.starmap(Sample.pull_image, tqdm(inputs, total=len(self.samples)))
 
             print('Loading labels')
@@ -164,7 +164,7 @@ class Dataset:
                         }
                         annotations.append(ann)
 
-            with open(f'{os.path.join(dataset_loc, self.name)}.json', 'w') as f:
+            with open(f'{os.path.join(project_loc, self.name)}.json', 'w') as f:
                 coco = {
                     'images': images,
                     'categories': self.categories,
@@ -174,46 +174,46 @@ class Dataset:
 
         else:
             if images_only:
-                image_loc = os.path.join(dataset_loc, 'images')
+                image_loc = os.path.join(project_loc, 'images')
                 os.makedirs(image_loc, exist_ok=True)
 
-                print('Downloading your dataset...')
+                print('Downloading your project...')
                 with Pool(8) as p:
-                    inputs = zip(self.samples, repeat(dataset_loc))
+                    inputs = zip(self.samples, repeat(project_loc))
                     r = p.starmap(Sample.pull_image, tqdm(inputs, total=len(self.samples)))
 
-                return dataset_loc
+                return project_loc
             
             elif labels_only:
-                label_loc = os.path.join(dataset_loc, 'labels')
+                label_loc = os.path.join(project_loc, 'labels')
                 os.makedirs(label_loc, exist_ok=True)
 
-                print('Downloading your dataset...')
+                print('Downloading your project...')
                 with Pool(8) as p:
                     if as_json:
-                        inputs = zip(self.samples, repeat(dataset_loc))
+                        inputs = zip(self.samples, repeat(project_loc))
                     else:
-                        inputs = zip(self.samples, repeat(dataset_loc), repeat(False), repeat(self.annotation_type))
+                        inputs = zip(self.samples, repeat(project_loc), repeat(False), repeat(self.annotation_type))
                     r = p.starmap(Sample.pull_label, tqdm(inputs, total=len(self.samples)))
 
-                return dataset_loc
+                return project_loc
             
             else:
-                image_loc = os.path.join(dataset_loc, 'images')
-                label_loc = os.path.join(dataset_loc, 'labels')
+                image_loc = os.path.join(project_loc, 'images')
+                label_loc = os.path.join(project_loc, 'labels')
 
                 os.makedirs(image_loc, exist_ok=True)
                 os.makedirs(label_loc, exist_ok=True)
 
-                print('Downloading your dataset...')
+                print('Downloading your project...')
                 with Pool(8) as p:
                     if as_json:
-                        inputs = zip(self.samples, repeat(dataset_loc))
+                        inputs = zip(self.samples, repeat(project_loc))
                     else:
-                        inputs = zip(self.samples, repeat(dataset_loc), repeat(False), repeat(self.annotation_type))
+                        inputs = zip(self.samples, repeat(project_loc), repeat(False), repeat(self.annotation_type))
                     r = p.starmap(Sample.pull, tqdm(inputs, total=len(self.samples)))
 
-                return dataset_loc
+                return project_loc
 
     def push(self, image_list, label_list=None):
         
@@ -223,7 +223,7 @@ class Dataset:
                 inputs = zip(repeat(self), image_list, label_list)
             else:
                 inputs = zip(repeat(self), image_list)
-            r = p.starmap(Dataset.create_sample, tqdm(inputs, total=len(image_list)))
+            r = p.starmap(Project.create_sample, tqdm(inputs, total=len(image_list)))
 
     def load_samples(self, labeled_only=False, approved_only=False):
         samples = []
@@ -237,7 +237,7 @@ class Dataset:
         page=1
         while(True):
             try:
-                endpoint = f'/datasets/{self.uuid}/samples/?page={page}'
+                endpoint = f'/projects/{self.uuid}/samples/?page={page}'
                 endpoint += filter
                 for sample in self.client.get(endpoint):
                     samples.append(Sample(self.client, **sample))
@@ -275,7 +275,7 @@ class Dataset:
             'asset': asset_data['uuid'],
             'tags': tags
         }
-        sample_data = self.client.post(f'/datasets/{self.uuid}/samples/', payload)
+        sample_data = self.client.post(f'/projects/{self.uuid}/samples/', payload)
 
         sample = Sample(client=self.client, **sample_data)
 
@@ -288,7 +288,7 @@ class Dataset:
         return sample
 
     def delete(self):
-        self.client.delete(f'/datasets/{self.uuid}/')
+        self.client.delete(f'/projects/{self.uuid}/')
 
 class Client:
 
@@ -345,34 +345,34 @@ class Client:
 
         return headers
 
-    def list_datasets(self):
-        datasets = []
+    def list_projects(self):
+        projects = []
         
         page=1
         while(True):
             try:
-                for dataset_data in self.get(f'/datasets/?page={page}'):
-                    datasets.append(Dataset(self, **dataset_data))
+                for project_data in self.get(f'/projects/?page={page}'):
+                    projects.append(Project(self, **project_data))
                 page+=1
             except:
                 break
         
-        return datasets
+        return projects
 
-    def get_dataset_by_uuid(self, dataset_uuid):
-        dataset_data = self.get(f'/datasets/{dataset_uuid}/')
-        return Dataset(self, **dataset_data)
+    def get_project_by_uuid(self, project_uuid):
+        project_data = self.get(f'/projects/{project_uuid}/')
+        return Project(self, **project_data)
 
-    def get_dataset_by_name(self, name, owner=None):
+    def get_project_by_name(self, name, owner=None):
         owner = owner if owner else self.username
-        dataset_data = self.get(f'/datasets/?name={name}&owner={owner}')
+        project_data = self.get(f'/projects/?name={name}&owner={owner}')
         
-        if len(dataset_data) == 0:
-            raise Exception(f'Did not found dataset "{name}" for owner "{owner}". If this is a shared or public dataset, please specify the owner')
+        if len(project_data) == 0:
+            raise Exception(f'Did not found project "{name}" for owner "{owner}". If this is a shared or public project, please specify the owner')
 
-        return Dataset(self, **dataset_data[0])
+        return Project(self, **project_data[0])
 
-    def create_dataset(self, name, description='', categories=[{'id': 1, 'name': 'object'}] ,annotation_type='BBOX'):
+    def create_project(self, name, description='', categories=[{'id': 1, 'name': 'object'}] ,annotation_type='BBOX'):
         payload = {
             'name': name,
             'description': description,
@@ -382,17 +382,17 @@ class Client:
         if annotation_type:
             payload['annotation_type'] = annotation_type
 
-        dataset_data = self.post('/datasets/', payload)
+        project_data = self.post('/projects/', payload)
         
-        return Dataset(self, **dataset_data)
+        return Project(self, **project_data)
 
-    def get_or_create_dataset(self, name, owner=None, **kwargs):
+    def get_or_create_project(self, name, owner=None, **kwargs):
         try:
-            dataset = self.get_dataset_by_name(name, owner)
+            project = self.get_project_by_name(name, owner)
         except:
-            dataset = self.create_dataset(name, **kwargs)
+            project = self.create_project(name, **kwargs)
 
-        return dataset
+        return project
 
     def get_model_by_name(self, name, owner=None):
         owner = owner if owner else self.username
@@ -404,11 +404,11 @@ class Client:
         return MLModel(self, **model_data[0])
 
 
-    def create_model(self, name, description='', dataset=None, categories=[] ,annotation_type='BBOX', architecture=''):
+    def create_model(self, name, description='', project=None, categories=[] ,annotation_type='BBOX', architecture=''):
         payload = {
             'name': name,
             'description': description,
-            'dataset': dataset,
+            'project': project,
             'categories': categories,
             'annotation_type': annotation_type,
             'architecture': architecture

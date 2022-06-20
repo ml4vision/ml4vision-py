@@ -35,20 +35,20 @@ def authenticate(apikey):
         print('API Key is invalid.')
         sys.exit(1)
 
-def pull_dataset(name, images_only, labels_only, approved_only, labeled_only):
+def pull_project(name, images_only, labels_only, approved_only, labeled_only):
     client = _get_client() 
     try:   
-        dataset = client.get_dataset_by_name(name)
-        dataset.load_samples(labeled_only=labeled_only, approved_only=approved_only)
-        dataset.pull(images_only=images_only, labels_only=labels_only)
+        project = client.get_project_by_name(name)
+        project.load_samples(labeled_only=labeled_only, approved_only=approved_only)
+        project.pull(images_only=images_only, labels_only=labels_only)
     except Exception as e:
         print(e)
         sys.exit(1)
 
-def push_to_dataset(name, path, label_path=None):
+def push_to_project(name, path, label_path=None):
     client = _get_client()
     try:
-        dataset = client.get_dataset_by_name(name)
+        project = client.get_project_by_name(name)
         
         image_files = []
         image_types = (
@@ -73,17 +73,17 @@ def push_to_dataset(name, path, label_path=None):
             label_files.sort()
 
             assert len(image_files) == len(label_files), f'Number of images ({len(image_files)}) does not equal number of labels ({len(label_files)})'
-            dataset.push(image_files, label_files)
+            project.push(image_files, label_files)
         else:
-            dataset.push(image_files)
+            project.push(image_files)
 
 
     except Exception as e:
         print(e)
         sys.exit(1)
 
-def list_datasets():
+def list_projects():
     client = _get_client()
-    datasets = client.list_datasets()
-    for dts in datasets:
+    projects = client.list_projects()
+    for dts in projects:
         print(dts.name)

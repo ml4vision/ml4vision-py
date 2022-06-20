@@ -10,10 +10,10 @@ class SegmentationEngine(Engine):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.binary = len(self.config.dataset_info['categories']) == 1
+        self.binary = len(self.config.project_info['categories']) == 1
         self.visualizer = SegmentationVisualizer()
 
-        n_classes = len(self.config.dataset_info['categories'])
+        n_classes = len(self.config.project_info['categories'])
         ignore_index = self.config.loss.params.get('ignore_index', -1)
         self.iou_meter = IOUEvaluator(n_classes + 1 if self.binary else n_classes,
                                 ignore_index=ignore_index)
@@ -78,4 +78,4 @@ class SegmentationEngine(Engine):
             json.dump(state['metrics'], f)
 
         with open(os.path.join(cfg.save_location, 'categories.json'), 'w') as f:
-            json.dump(cfg.dataset_info['categories'], f)
+            json.dump(cfg.project_info['categories'], f)

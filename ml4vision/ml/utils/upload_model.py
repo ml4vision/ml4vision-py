@@ -3,15 +3,15 @@ import json
 
 def upload_model(config, model_name=None):
 
-    model_name = model_name or f"{config.dataset_info['name']}-model"
+    model_name = model_name or f"{config.project_info['name']}-model"
     annotation_type = "BBOX" if config.task == 'detection' else "SEGMENTATION"
     architecture = 'object_detection_fn' if annotation_type == "BBOX" else "segmentation_fn"
 
     model = config.client.get_or_create_model(
         model_name,
         description='',
-        dataset = config.client.get_dataset_by_name(config.dataset_info['name'], config.dataset_info['owner']).uuid,
-        categories=config.dataset_info['categories'],
+        project = config.client.get_project_by_name(config.project_info['name'], config.project_info['owner']).uuid,
+        categories=config.project_info['categories'],
         annotation_type=annotation_type,
         architecture=architecture
     )
