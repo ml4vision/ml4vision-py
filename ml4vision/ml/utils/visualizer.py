@@ -83,13 +83,13 @@ class ObjectDetectionVisualizer:
         # display pred
         axs[0].imshow(image.numpy().transpose(1,2,0))
         for box in pred.numpy():
-            rect = Rectangle((box[0], box[1]), box[2]-box[0], box[3]-box[1], linewidth=1, edgecolor=self.colors[int(box[4])], facecolor='none')
+            rect = Rectangle((box[0], box[1]), box[2]-box[0]+1, box[3]-box[1]+1, linewidth=1, edgecolor=self.colors[int(box[4])], facecolor='none')
             axs[0].add_patch(rect)
 
         # display gt
         axs[1].imshow(image.numpy().transpose(1,2,0))
         for box in gt.numpy():
-            rect = Rectangle((box[0], box[1]), box[2]-box[0], box[3]-box[1], linewidth=1, edgecolor=self.colors[int(box[4])], facecolor='none')
+            rect = Rectangle((box[0], box[1]), box[2]-box[0]+1, box[3]-box[1]+1, linewidth=1, edgecolor=self.colors[int(box[4])], facecolor='none')
             axs[1].add_patch(rect)
 
         if self.inline: 

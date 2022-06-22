@@ -16,7 +16,7 @@ class MLModel:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def add_version(self, model_file, params={}):
+    def add_version(self, model_file, params={}, metrics={}):
 
         # create asset
         filename = os.path.basename(model_file)
@@ -41,7 +41,8 @@ class MLModel:
         # create version
         payload = {
             'asset': asset_data['uuid'],
-            'params': params
+            'params': params,
+            'metrics': metrics
         }
         version_data = self.client.post(f'/models/{self.uuid}/versions/', payload)
 

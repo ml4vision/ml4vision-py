@@ -29,6 +29,11 @@ def upload_model(config, model_name=None):
                 'pad': 32,
                 'normalize': True,
                 'threshold': float(metrics["working_point"]["confidence"])
+            },
+            metrics = {
+                'map': round(metrics["map"], 3),
+                'precision': round(metrics["working_point"]["precision"], 3),
+                'recall': round(metrics["working_point"]["recall"], 3)
             }
         )
 
@@ -39,6 +44,9 @@ def upload_model(config, model_name=None):
                 'min_size': config.transform.min_size,
                 'pad': 32,
                 'normalize': True,
+            },
+            metrics = {
+                'miou': round(metrics["mean_iou"], 3)
             }
         )
 
