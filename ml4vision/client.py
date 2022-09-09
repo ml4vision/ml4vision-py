@@ -226,7 +226,7 @@ class Project:
                 inputs = zip(repeat(self), image_list)
             r = p.starmap(Project.create_sample, tqdm(inputs, total=len(image_list)))
 
-    def load_samples(self, labeled_only=False, approved_only=False):
+    def load_samples(self, labeled_only=False, approved_only=False, split=None):
         samples = []
         
         filter = ''
@@ -234,6 +234,8 @@ class Project:
             filter += '&approved=True'
         if labeled_only:
             filter +='&labeled=True'
+        if split is not None:
+            filter +=f'&split={split}'
         
         page=1
         while(True):
@@ -288,6 +290,10 @@ class Project:
 
         return sample
 
+    def make_split(self):
+        return self.client.put(f'/projects/{self.uuid}/make_split/')
+
+
     def delete(self):
         self.client.delete(f'/projects/{self.uuid}/')
 
@@ -320,6 +326,16 @@ class Client:
             return response.json()
         else:
             raise Exception(f"Request failed, status_code: {response.status_code} - {response.text}")
+
+    def patch(self, endpoint, payload={}):
+        
+        response = requests.patch(self.url + endpoint, json=payload, headers = self._get_headers())
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Request failed, status_code: {response.status_code} - {response.text}")
+
 
     def put(self, endpoint, payload={}):
 

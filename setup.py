@@ -40,26 +40,15 @@ setup(
     ],
     extras_require={
         "ml": [
-            "torch>=1.9.0",
-            "torchvision>=0.10.0",
-            "segmentation_models_pytorch>=0.2.1",
-            "opencv-python-headless<4.3", #required on colab
-            "albumentations>=1.1.0",
-            "brambox>=4.0.0"
+            "torch>=1.0.0",
         ],
     },
     packages=[
         "ml4vision",
         "ml4vision.utils",
         "ml4vision.ml",
-        "ml4vision.ml.configs",
         "ml4vision.ml.datasets",
-        "ml4vision.ml.engines",
-        "ml4vision.ml.losses",
-        "ml4vision.ml.models",
         "ml4vision.ml.utils",
-        "ml4vision.ml.utils.centernet",
-
     ],
     ext_modules=cythonize(extensions),
     classifiers=["Programming Language :: Python :: 3", "License :: OSI Approved :: MIT License"],

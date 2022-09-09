@@ -1,40 +1,33 @@
 import os
 import random
 
-from torch.utils.data import Dataset as TorchDataset
+from torch.utils.data import Dataset
 import json
 import numpy as np
 
 from ml4vision.ml.utils.image_utils import load_image
+from ml4vision.client import Client
 from PIL import Image
+import random
 
 
-class ML4visionDataset(TorchDataset):
+class ML4visionDataset(Dataset):
     def __init__(
         self,
-        client=None,
+        api_key='',
         name='',
         owner=None,
         labeled_only=True,
         approved_only=False,
-        split=False,
-        train=True,
+        split='TRAIN',
         cache_location="./dataset",
         min_size=None,
         transform=None,
         mapping=None
     ):
-
+        client = Client(api_key)
         project = client.get_project_by_name(name, owner=owner)
-        project.load_samples(labeled_only=labeled_only, approved_only=approved_only)
-
-        if split:
-            n_samples = len(project.samples)
-            project.samples = (
-                project.samples[0 : int(n_samples * 0.8)]
-                if train
-                else project.samples[int(n_samples * 0.8) :]
-            )
+        project.load_samples(labeled_only=labeled_only, approved_only=approved_only, split=split)
 
         dataset_loc = project.pull(location=cache_location)
 
