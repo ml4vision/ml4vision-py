@@ -30,16 +30,6 @@ class Options:
             help="Name of project"
         )
         project_pull.add_argument(
-            "--images-only",
-            action="store_true",
-            help="Pull the images only"
-        )
-        project_pull.add_argument(
-            "--labels-only",
-            action="store_true",
-            help="Pull the labels only"
-        )
-        project_pull.add_argument(
             "--approved-only",
             action="store_true",
             help="Pull only the approved samples"

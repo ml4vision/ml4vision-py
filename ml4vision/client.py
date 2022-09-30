@@ -8,6 +8,7 @@ from itertools import repeat
 from ml4vision.utils import mask_utils 
 from PIL import Image
 import numpy as np
+import yaml
 
 class MLModel:
 
@@ -73,17 +74,46 @@ class Sample:
         if not os.path.exists(asset_location):
             urlretrieve(self.asset['url'], asset_location)
 
-    def pull_label(self, location='./', as_json=True, type='BBOX'):
+    def pull_label(self, location='./', type='BBOX', format=None):
         self.load_label()
 
-        if as_json or type=='BBOX':
+        if type=='BBOX':
 
-            asset_filename = self.asset['filename']
-            label_filename = os.path.splitext(asset_filename)[0] + '.json'
-            label_location = os.path.join(location, 'labels', label_filename)
+            if format == 'yolo':
+                asset_filename = self.asset['filename']
+                label_filename = os.path.splitext(asset_filename)[0] + '.txt'
+                label_location = os.path.join(location, 'labels', label_filename)
 
-            with open(label_location, 'w') as f:
-                json.dump(self.label, f)
+                im_w, im_h = self.asset['metadata']['size'] 
+
+                with open(label_location, 'w') as f:
+                    for l in self.label['annotations']:
+                        cl = l['category_id'] - 1
+                        x_min, y_min, w, h = l['bbox']
+                        x_max = x_min + w
+                        y_max = y_min + h
+
+                        x_min = min(max(0, x_min), im_w)
+                        y_min = min(max(0, y_min), im_h)
+                        x_max = min(max(0, x_max), im_w)
+                        y_max = min(max(0, y_max), im_h)
+
+                        xc, yc = (x_min + x_max) / 2.0, (y_min + y_max) / 2.0
+                        w, h = x_max - x_min, y_max - y_min
+                        
+                        xc, yc = xc / im_w, yc / im_h
+                        w, h = w / im_w, h / im_h
+
+                        f.write(f'{cl} {xc:.5f} {yc:.5f} {w:.5f} {h:.5f}\n')
+
+            else:
+
+                asset_filename = self.asset['filename']
+                label_filename = os.path.splitext(asset_filename)[0] + '.json'
+                label_location = os.path.join(location, 'labels', label_filename)
+
+                with open(label_location, 'w') as f:
+                    json.dump(self.label, f)
 
         elif type == "SEGMENTATION":
             asset_filename = self.asset['filename']
@@ -110,9 +140,9 @@ class Sample:
         else:
             assert False, f'type {type} is not implemented!'
 
-    def pull(self, location='./', as_json=True, type='BBOX'):
+    def pull(self, location='./', type='BBOX', format=None):
         self.pull_image(location=location)
-        self.pull_label(location=location, as_json=as_json, type=type)
+        self.pull_label(location=location, type=type, format=format)
 
     def delete(self):
         self.client.delete(f'/samples/{self.uuid}/')
@@ -124,7 +154,7 @@ class Project:
         for key, value in project_data.items():
             setattr(self, key, value)
 
-    def pull(self, location='./', as_json=False, images_only=False, labels_only=False):
+    def pull(self, location='./', format=None):
         project_loc = os.path.join(location, self.name)
 
         if format == 'coco':
@@ -173,48 +203,52 @@ class Project:
                 }
                 json.dump(coco, f)
 
+        elif format == 'yolo':
+            image_loc = os.path.join(project_loc, 'images')
+            label_loc = os.path.join(project_loc, 'labels')
+
+            os.makedirs(image_loc, exist_ok=True)
+            os.makedirs(label_loc, exist_ok=True)
+
+            print('Downloading your project...')
+            with Pool(8) as p:
+                inputs = zip(self.samples, repeat(project_loc), repeat(self.annotation_type), repeat('yolo'))
+                r = p.starmap(Sample.pull, tqdm(inputs, total=len(self.samples)))
+
+            # create train-val txt file
+            with open(os.path.join(project_loc, 'train.txt'), 'w') as f:
+                for s in self.samples:
+                    if s.split == 'TRAIN':
+                        f.write(f'./images/{s.asset["filename"]}\n')
+
+            with open(os.path.join(project_loc, 'val.txt'), 'w') as f:
+                for s in self.samples:
+                    if s.split == 'VAL':
+                        f.write(f'./images/{s.asset["filename"]}\n')
+
+            # create dataset yaml file
+            with open(os.path.join(project_loc, 'dataset.yaml'), 'w') as f:
+                yaml_content = {
+                    'path': os.path.abspath(project_loc),
+                    'train': 'train.txt',
+                    'val': 'val.txt',
+                    'names': {cat['id']-1:cat['name'] for cat in self.categories}
+                }
+                yaml.dump(yaml_content, f)
+
         else:
-            if images_only:
-                image_loc = os.path.join(project_loc, 'images')
-                os.makedirs(image_loc, exist_ok=True)
+            image_loc = os.path.join(project_loc, 'images')
+            label_loc = os.path.join(project_loc, 'labels')
 
-                print('Downloading your project...')
-                with Pool(8) as p:
-                    inputs = zip(self.samples, repeat(project_loc))
-                    r = p.starmap(Sample.pull_image, tqdm(inputs, total=len(self.samples)))
+            os.makedirs(image_loc, exist_ok=True)
+            os.makedirs(label_loc, exist_ok=True)
 
-                return project_loc
-            
-            elif labels_only:
-                label_loc = os.path.join(project_loc, 'labels')
-                os.makedirs(label_loc, exist_ok=True)
+            print('Downloading your project...')
+            with Pool(8) as p:
+                inputs = zip(self.samples, repeat(project_loc), repeat(self.annotation_type))
+                r = p.starmap(Sample.pull, tqdm(inputs, total=len(self.samples)))
 
-                print('Downloading your project...')
-                with Pool(8) as p:
-                    if as_json:
-                        inputs = zip(self.samples, repeat(project_loc))
-                    else:
-                        inputs = zip(self.samples, repeat(project_loc), repeat(False), repeat(self.annotation_type))
-                    r = p.starmap(Sample.pull_label, tqdm(inputs, total=len(self.samples)))
-
-                return project_loc
-            
-            else:
-                image_loc = os.path.join(project_loc, 'images')
-                label_loc = os.path.join(project_loc, 'labels')
-
-                os.makedirs(image_loc, exist_ok=True)
-                os.makedirs(label_loc, exist_ok=True)
-
-                print('Downloading your project...')
-                with Pool(8) as p:
-                    if as_json:
-                        inputs = zip(self.samples, repeat(project_loc))
-                    else:
-                        inputs = zip(self.samples, repeat(project_loc), repeat(False), repeat(self.annotation_type))
-                    r = p.starmap(Sample.pull, tqdm(inputs, total=len(self.samples)))
-
-                return project_loc
+            return project_loc
 
     def push(self, image_list, label_list=None):
         
@@ -293,7 +327,6 @@ class Project:
     def make_split(self):
         return self.client.put(f'/projects/{self.uuid}/make_split/')
 
-
     def delete(self):
         self.client.delete(f'/projects/{self.uuid}/')
 
@@ -336,7 +369,6 @@ class Client:
         else:
             raise Exception(f"Request failed, status_code: {response.status_code} - {response.text}")
 
-
     def put(self, endpoint, payload={}):
 
         response = requests.put(self.url + endpoint, json=payload, headers = self._get_headers())
@@ -345,7 +377,6 @@ class Client:
             return response.json()
         else:
             raise Exception(f"Request failed, status_code: {response.status_code} - {response.text}")
-
 
     def delete(self, endpoint):
         response = requests.delete(self.url + endpoint, headers=self._get_headers())
@@ -419,7 +450,6 @@ class Client:
             raise Exception(f'Did not found model "{name}" for owner "{owner}". If this is a shared or public model, please specify the owner')
 
         return MLModel(self, **model_data[0])
-
 
     def create_model(self, name, description='', project=None, categories=[] ,annotation_type='BBOX', architecture=''):
         payload = {

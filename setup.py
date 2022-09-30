@@ -36,7 +36,8 @@ setup(
         "requests",
         "argcomplete",
         "numpy",
-        "pillow"
+        "pillow",
+        "PyYAML"
     ],
     extras_require={
         "ml": [
