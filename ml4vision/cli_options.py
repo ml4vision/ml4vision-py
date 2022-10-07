@@ -30,14 +30,9 @@ class Options:
             help="Name of project"
         )
         project_pull.add_argument(
-            "--approved-only",
-            action="store_true",
-            help="Pull only the approved samples"
-        )
-        project_pull.add_argument(
-            "--labeled-only",
-            action="store_true",
-            help="Pull only the labeled samples"
+            "--format",
+            type=str,
+            help="Output format"
         )
 
         ## project push

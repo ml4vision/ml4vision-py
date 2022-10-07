@@ -35,12 +35,11 @@ def authenticate(apikey):
         print('API Key is invalid.')
         sys.exit(1)
 
-def pull_project(name, approved_only, labeled_only):
+def pull_project(name, format):
     client = _get_client() 
     try:   
         project = client.get_project_by_name(name)
-        project.load_samples(labeled_only=labeled_only, approved_only=approved_only)
-        project.pull()
+        project.pull(format=format)
     except Exception as e:
         print(e)
         sys.exit(1)

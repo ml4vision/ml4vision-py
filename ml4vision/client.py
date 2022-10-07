@@ -154,7 +154,14 @@ class Project:
         for key, value in project_data.items():
             setattr(self, key, value)
 
-    def pull(self, location='./', format=None):
+    def pull(self, location='./', filter='LABELED', format=None):
+        # make split
+        self.make_split()
+
+        # load samples
+        samples = self.get_samples(filter=filter)
+
+        # pull
         project_loc = os.path.join(location, self.name)
 
         if format == 'coco':
@@ -163,19 +170,19 @@ class Project:
             
             print('Loading images')
             with Pool(8) as p:
-                inputs = zip(self.samples, repeat(project_loc))
-                r = p.starmap(Sample.pull_image, tqdm(inputs, total=len(self.samples)))
+                inputs = zip(samples, repeat(project_loc))
+                r = p.starmap(Sample.pull_image, tqdm(inputs, total=len(samples)))
 
             print('Loading labels')
             with Pool(8) as p:
-                r = p.map(Sample.load_label, tqdm(self.samples, total=len(self.samples)))
-                self.samples = r
+                r = p.map(Sample.load_label, tqdm(samples, total=len(samples)))
+                samples = r
             
             print('Creating coco json file')
             images = []
             annotations = []
 
-            for sample in self.samples:
+            for sample in samples:
                 image = {
                     'id': sample.name.rsplit('.', 1)[0],
                     'file_name': sample.name,
@@ -212,19 +219,16 @@ class Project:
 
             print('Downloading your project...')
             with Pool(8) as p:
-                inputs = zip(self.samples, repeat(project_loc), repeat(self.annotation_type), repeat('yolo'))
-                r = p.starmap(Sample.pull, tqdm(inputs, total=len(self.samples)))
+                inputs = zip(samples, repeat(project_loc), repeat(self.annotation_type), repeat('yolo'))
+                r = p.starmap(Sample.pull, tqdm(inputs, total=len(samples)))
 
             # create train-val txt file
-            with open(os.path.join(project_loc, 'train.txt'), 'w') as f:
-                for s in self.samples:
+            with open(os.path.join(project_loc, 'train.txt'), 'w') as f_train, open(os.path.join(project_loc, 'val.txt'), 'w') as f_val:
+                for s in samples:
                     if s.split == 'TRAIN':
-                        f.write(f'./images/{s.asset["filename"]}\n')
-
-            with open(os.path.join(project_loc, 'val.txt'), 'w') as f:
-                for s in self.samples:
+                        f_train.write(f'./images/{s.asset["filename"]}\n')
                     if s.split == 'VAL':
-                        f.write(f'./images/{s.asset["filename"]}\n')
+                        f_val.write(f'./images/{s.asset["filename"]}\n')
 
             # create dataset yaml file
             with open(os.path.join(project_loc, 'dataset.yaml'), 'w') as f:
@@ -236,6 +240,8 @@ class Project:
                 }
                 yaml.dump(yaml_content, f)
 
+            return project_loc
+
         else:
             image_loc = os.path.join(project_loc, 'images')
             label_loc = os.path.join(project_loc, 'labels')
@@ -245,8 +251,48 @@ class Project:
 
             print('Downloading your project...')
             with Pool(8) as p:
-                inputs = zip(self.samples, repeat(project_loc), repeat(self.annotation_type))
-                r = p.starmap(Sample.pull, tqdm(inputs, total=len(self.samples)))
+                inputs = zip(samples, repeat(project_loc), repeat(self.annotation_type))
+                r = p.starmap(Sample.pull, tqdm(inputs, total=len(samples)))
+
+            # create all-train-val txt file
+            with open(os.path.join(project_loc, 'train.csv'), 'w') as f_train, open(os.path.join(project_loc, 'val.csv'), 'w') as f_val:
+                
+                if self.annotation_type == 'BBOX':
+                    # write header
+                    f_train.write('image_path,label_path\n')
+                    f_val.write('image_path,label_path\n')
+
+                    for s in samples:
+                        f = f_train if s.split == 'TRAIN' else f_val
+                        
+                        im_path = f'images/{s.asset["filename"]}'
+                        label_path = f'labels/{os.path.splitext(s.asset["filename"])[0]}.json'
+                        f.write(im_path + ',' + label_path + '\n')
+
+                elif self.annotation_type == 'SEGMENTATION':
+                    # write header
+                    f_train.write('image_path,label_path\n')
+                    f_val.write('image_path,label_path\n')
+
+                    for s in samples:
+                        f = f_train if s.split == 'TRAIN' else f_val
+                        
+                        im_path = f'images/{s.asset["filename"]}'
+                        label_path = f'labels/{os.path.splitext(s.asset["filename"])[0]}.png'
+                        f.write(im_path + ',' + label_path + '\n')
+                
+                else:
+                    # write header
+                    f_train.write('image_path,cls_label_path,inst_label_path\n')
+                    f_val.write('image_path,cls_label_path,inst_label_path\n')
+
+                    for s in samples:
+                        f = f_train if s.split == 'TRAIN' else f_val
+                        
+                        im_path = f'images/{s.asset["filename"]}'
+                        cls_label_path = f'labels/{os.path.splitext(s.asset["filename"])[0]}_cls.png'
+                        inst_label_path = f'labels/{os.path.splitext(s.asset["filename"])[0]}_inst.png'
+                        f.write(im_path + ',' + cls_label_path + ',' + inst_label_path + '\n')
 
             return project_loc
 
@@ -260,29 +306,24 @@ class Project:
                 inputs = zip(repeat(self), image_list)
             r = p.starmap(Project.create_sample, tqdm(inputs, total=len(image_list)))
 
-    def load_samples(self, labeled_only=False, approved_only=False, split=None):
-        samples = []
+    def get_samples(self, filter='LABELED'):
+
+        query = ''
+        if 'labeled' in filter.lower():
+            query += '&labeled=True'
         
-        filter = ''
-        if approved_only:
-            filter += '&approved=True'
-        if labeled_only:
-            filter +='&labeled=True'
-        if split is not None:
-            filter +=f'&split={split}'
-        
-        page=1
+        page, samples = 1, []
         while(True):
             try:
                 endpoint = f'/projects/{self.uuid}/samples/?page={page}'
-                endpoint += filter
+                endpoint += query
                 for sample in self.client.get(endpoint):
                     samples.append(Sample(self.client, **sample))
                 page+=1
             except:
                 break
         
-        self.samples = samples
+        return samples
 
     def create_sample(self, image_file, label_file=None, tags={}):
         # create asset
