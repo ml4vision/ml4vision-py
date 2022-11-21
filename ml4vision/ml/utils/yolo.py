@@ -1,15 +1,50 @@
 import os
 import glob
 from ml4vision.client import MLModel
+import yaml
+import re
 
-def upload_latest_model(project, run_location='./runs/train', size=640, nms_threshold=0.45):
-    # find latest version
-    exp_path = sorted(glob.glob(os.path.join(run_location, '*')))[-1]
-    result_file = os.path.join(exp_path, 'best.csv')
-    with open(result_file, 'r') as f:
-        result = f.readlines()[1]
-        mp, mr, map50, map, conf = [float(item) for item in result.split(',')]
+def upload_yolo_run(project, run_location='./runs/train', run=None, weights='best.pt', nms_threshold=0.45):
+    # exp path
+    if run is None:
+        # get latest exp
+        exp_paths = glob.glob(os.path.join(run_location, '*'))
+        # order paths (natural ordering so a bit tricky)
+        convert = lambda text: int(text) if text.isdigit() else text.lower()
+        alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+        exp_path = sorted(exp_paths, key=alphanum_key)[-1]
+    else:
+        exp_path = os.path.join(run_location, run)
 
+    # get result of best/last model
+    csv_file = os.path.join(exp_path, 'results.csv')
+    with open(csv_file, 'r') as f:
+        csv_list = [[val.strip() for val in r.split(",")] for r in f.readlines()][1:]
+        results = [{'precision': float(item[4]), 'recall':float(item[5]), 'map50':float(item[6]), 'map':float(item[7]), 'conf': float(item[-1])} for item in csv_list]
+
+    if weights == 'best.pt':
+        # find best result
+        best_result, best_fi = None, -1
+        for result in results:
+            fi = 0.1*result['map50'] + 0.9*result['map']
+            if fi > best_fi:
+                best_fi = fi
+                best_result = result
+        result = best_result
+    else:
+        # take last result
+        result = results[-1]
+
+    # get categories
+    opt_file = os.path.join(exp_path, 'opt.yaml')
+    with open(opt_file, 'r') as f:
+        opt = yaml.load(f, Loader=yaml.FullLoader)
+    
+    dataset_file = opt['data']
+    with open(dataset_file, 'r') as f:
+        dataset = yaml.load(f, Loader=yaml.FullLoader)
+    categories = [{'id': id+1, 'name': name} for id, name in dataset['names'].items()]
+    
     # create model
     if project.model is None:
         model = MLModel.create(
@@ -20,21 +55,21 @@ def upload_latest_model(project, run_location='./runs/train', size=640, nms_thre
     else:
         model = project.model
 
-    # add version
+    print('adding version to project ...')
     model.add_version(
-        os.path.join(exp_path, 'weights', 'best.pt'),
-        categories=project.categories,
+        os.path.join(exp_path, 'weights', weights),
+        categories=categories,
         architecture='object_detection_fn',
         params={
             'model_type': 'yolov5',
-            'min_size': size,
-            'threshold': conf,
+            'min_size': opt['imgsz'],
+            'threshold': opt['conf'],
             'nms_threshold': nms_threshold
         },
         metrics={
-            'map50': round(map50, 3),
-            'map': round(map, 3),
-            'precision': round(mp, 3),
-            'recall': round(mr, 3)
+            'map50': round(result['map50'], 3),
+            'map': round(result['map'], 3),
+            'precision': round(result['precision'], 3),
+            'recall': round(result['recall'], 3)
         }
     )
