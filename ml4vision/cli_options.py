@@ -18,10 +18,7 @@ class Options:
         # project
         project = subparsers.add_parser("project", help="project related functions")
         project_action = project.add_subparsers(dest="action")
-
-        ## project list
-        project_list = project_action.add_parser("list", help="List all projects")
-        
+       
         ## project pull
         project_pull = project_action.add_parser("pull", help="Pull samples from project")
         project_pull.add_argument(
@@ -46,11 +43,6 @@ class Options:
             "path",
             type=str,
             help="Path to image folder"
-        )
-        project_push.add_argument(
-            "--label_path",
-            type=str,
-            help="Path to label folder"
         )
 
         # version

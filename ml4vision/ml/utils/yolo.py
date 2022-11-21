@@ -1,5 +1,6 @@
 import os
 import glob
+from ml4vision.client import MLModel
 
 def upload_latest_model(project, run_location='./runs/train', size=640, nms_threshold=0.45):
     # find latest version
@@ -9,26 +10,28 @@ def upload_latest_model(project, run_location='./runs/train', size=640, nms_thre
         result = f.readlines()[1]
         mp, mr, map50, map, conf = [float(item) for item in result.split(',')]
 
-    # upload model
-    print('Uploading model to ml4vision ...')
-    remote_model = project.client.get_or_create_model(
-        f"{project.name}-model",
-        description = '',
-        project = project.uuid,
-        categories = project.categories,
-        annotation_type = "BBOX",
-        architecture = "object_detection_fn"
-    )
+    # create model
+    if project.model is None:
+        model = MLModel.create(
+            project.client,
+            f'{project.name}-model',
+            project=project.uuid
+        )
+    else:
+        model = project.model
 
-    remote_model.add_version(
+    # add version
+    model.add_version(
         os.path.join(exp_path, 'weights', 'best.pt'),
-        params = {
+        categories=project.categories,
+        architecture='object_detection_fn',
+        params={
             'model_type': 'yolov5',
             'min_size': size,
             'threshold': conf,
             'nms_threshold': nms_threshold
         },
-        metrics = {
+        metrics={
             'map50': round(map50, 3),
             'map': round(map, 3),
             'precision': round(mp, 3),

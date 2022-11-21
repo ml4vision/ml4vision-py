@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from ml4vision.client import Client
+from ml4vision.client import Client, Project
 import glob
 import sys
 
@@ -38,16 +38,16 @@ def authenticate(apikey):
 def pull_project(name, format):
     client = _get_client() 
     try:   
-        project = client.get_project_by_name(name)
+        project = Project.get_by_name(client, name)
         project.pull(format=format)
     except Exception as e:
         print(e)
         sys.exit(1)
 
-def push_to_project(name, path, label_path=None):
+def push_to_project(name, path):
     client = _get_client()
     try:
-        project = client.get_project_by_name(name)
+        project = Project.get_by_name(client, name)
         
         image_files = []
         image_types = (
@@ -61,28 +61,8 @@ def push_to_project(name, path, label_path=None):
             image_files.extend(glob.glob(os.path.join(path, t)))
         image_files.sort()
 
-        if label_path:
-            label_files = []
-            label_types = (
-                '*.png', '*.PNG',
-                '*tif', '*.TIF'
-            )
-            for t in label_types:
-                label_files.extend(glob.glob(os.path.join(label_path, t)))
-            label_files.sort()
-
-            assert len(image_files) == len(label_files), f'Number of images ({len(image_files)}) does not equal number of labels ({len(label_files)})'
-            project.push(image_files, label_files)
-        else:
-            project.push(image_files)
-
+        project.push(image_files)
 
     except Exception as e:
         print(e)
         sys.exit(1)
-
-def list_projects():
-    client = _get_client()
-    projects = client.list_projects()
-    for dts in projects:
-        print(dts.name)

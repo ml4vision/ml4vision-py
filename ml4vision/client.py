@@ -6,67 +6,258 @@ from multiprocessing import Pool
 from tqdm import tqdm
 from itertools import repeat   
 from ml4vision.utils import mask_utils 
-from PIL import Image
-import numpy as np
 import yaml
 
-class MLModel:
+class Asset:
 
-    def __init__(self, client, **kwargs):
+    def __init__(self, client, data):
         self.client = client
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+        self.data = data
 
-    def add_version(self, model_file, params={}, metrics={}):
+    @property
+    def uuid(self):
+        return self.data['uuid']
 
+    @property
+    def filename(self):
+        return self.data['filename']
+
+    @property
+    def asset(self):
+        return self.data['asset']
+
+    @classmethod
+    def create(cls, client, file, type='OTHER'):
         # create asset
-        filename = os.path.basename(model_file)
+        filename = os.path.basename(file)
         payload = {
             'filename': filename,
+            'type': type
         }
-        asset_data = self.client.post(f'/assets/', payload=payload)
+        data = client.post(f'/assets/', payload=payload)
 
         # upload file to s3
-        url = asset_data['presigned_post_fields']['url']
-        fields = asset_data['presigned_post_fields']['fields']
+        url = data['presigned_post_fields']['url']
+        fields = data['presigned_post_fields']['fields']
         
-        with open(model_file, 'rb') as f:
+        with open(file, 'rb') as f:
             response = requests.post(url, data=fields, files={'file':f})
         
         if response.status_code != 204:
             raise Exception(f"Failed uploading to s3, status_code: {response.status_code}")
 
         # confirm upload
-        self.client.put(f'/assets/{asset_data["uuid"]}/confirm_upload/')
+        data = client.put(f'/assets/{data["uuid"]}/confirm_upload/')
+
+        return cls(client, data)
+
+class MLModelVersion:
+
+    def __init__(self, client, data):
+        self.client = client
+        self.data = data
+
+    @property
+    def version(self):
+        return self.data['version']
+
+    @property
+    def categories(self):
+        return self.data['categories']
+
+    @property
+    def architecture(self):
+        return self.data['architecture']
+
+    @property
+    def weights(self):
+        return self.data['weights']
+
+    @property
+    def params(self):
+        return self.data['params']
+
+    @property
+    def metrics(self):
+        return self.data['metrics']
+
+    @property
+    def created_at(self):
+        return self.data['created_at']
+
+    @classmethod
+    def create(cls, client, model, weights, categories, architecture, params, metrics={}):
+
+        # create asset
+        asset = Asset.create(client, weights)
 
         # create version
         payload = {
-            'asset': asset_data['uuid'],
+            'categories': categories,
+            'architecture': architecture,
+            'weights': asset.uuid,
             'params': params,
             'metrics': metrics
         }
-        version_data = self.client.post(f'/models/{self.uuid}/versions/', payload)
+        data = client.post(f'/models/{model}/versions/', payload)
+
+        return cls(client, data)
+
+class MLModel:
+
+    def __init__(self, client, data):
+        self.client = client
+        self.data = data
+
+    @property
+    def uuid(self):
+        return self.data['uuid']
+
+    @property
+    def name(self):
+        return self.data['name']
+
+    @property
+    def description(self):
+        return self.data['description']
+
+    @property
+    def type(self):
+        return self.data['type']
+
+    @property
+    def project(self):
+        return Project.get_by_uuid(self.client, self.data['project'])
+
+    @property
+    def thumbnail(self):
+        return self.data['thumbnail']
+
+    @property
+    def public(self):
+        return self.data['public']
+
+    @property
+    def owner(self):
+        return User(self.data['owner'])
+
+    @property
+    def latest_version(self):
+        if self.data['latest_version']:
+            return MLModelVersion(self.client, self.data['latest_version'])
+        else:
+            return None
+
+    @property
+    def created_at(self):
+        return self.data['created_at']
+
+    @classmethod
+    def create(cls, client, name, description='', type='BBOX', project=None):
+        payload = {
+            'name': name,
+            'description': description,
+            'type': type,
+            'project': project
+        }
+        data = client.post('/models/', payload)
+
+        return cls(client, data)
+
+    @classmethod
+    def get_or_create(cls, client, name, owner=None, **kwargs):
+        try:
+            model = cls.get_by_name(client, name, owner=owner)
+        except:
+            model = cls.create(client, name, **kwargs)
+
+        return model
+
+    @classmethod
+    def get_by_uuid(cls, client, uuid):
+        data = client.get(f'/models/{uuid}/')
+        return cls(client, data)
+
+    @classmethod
+    def get_by_name(cls, client, name, owner=None):
+        owner = owner if owner else client.owner.username
+        data = client.get(f'/models/?name={name}&owner={owner}')
+        
+        if len(data) == 0:
+            raise Exception(f'Did not found model "{name}" for owner "{owner}". If this is a shared or public model, please specify the owner')
+
+        return cls(client, data[0])
+
+    def add_version(self, weights, categories, architecture, params, metrics={}):
+        return MLModelVersion.create(self.client, self.uuid, weights, categories, architecture, params, metrics=metrics)
 
 class Sample:
 
-    def __init__(self, client, **kwargs):
+    def __init__(self, client, data):
         self.client  = client
-        for key, value in kwargs.items():
-            setattr(self, key, value)
 
-    def update_label(self, label):
+        # load label data
+        if data['label']:
+            data['label'] = client.get(f'/samples/{data["uuid"]}/label/')
+        self.data = data
+
+    @property
+    def uuid(self):
+        return self.data['uuid']
+
+    @property
+    def name(self):
+        return self.data['name']
+
+    @property
+    def asset(self):
+        return self.data['asset']
+
+    @property
+    def label(self):
+        return self.data['label']
+
+    @label.setter
+    def label(self, annotations):
         payload = {
-            'annotations': label
+            'annotations': annotations
         }
-        label = self.client.put(f'/samples/{self.uuid}/label/', payload=payload)
-        self.label = label
+        self.data['label'] = self.client.put(f'/samples/{self.uuid}/label/', payload=payload)
 
-    def load_label(self):
-        if self.label is not None:
-            sample_details = self.client.get(f'/samples/{self.uuid}/')
-            self.label = sample_details['label']
-        # return object for multiprocessing
-        return self
+    @property
+    def approved(self):
+        return self.data['approved']
+    
+    @property
+    def tags(self):
+        return self.data['tags']
+
+    @property
+    def split(self):
+        return self.data['split']
+
+    @property
+    def is_loading(self):
+        return self.data['is_loading']
+
+    @property
+    def created_at(self):
+        return self.data['created_at']
+    
+    @classmethod
+    def create(cls, client, project, image_file, tags={}):
+        # create asset
+        asset = Asset.create(client, image_file, type='IMAGE')
+
+        # create sample
+        payload = {
+            'name': asset.filename,
+            'asset': asset.uuid,
+            'tags': tags
+        }
+        data = client.post(f'/projects/{project}/samples/', payload)
+
+        return cls(client, data)
 
     def pull_image(self, location='./'):
         asset_filename = self.asset['filename']
@@ -75,11 +266,9 @@ class Sample:
             urlretrieve(self.asset['url'], asset_location)
 
     def pull_label(self, location='./', type='BBOX', format=None):
-        self.load_label()
-
         if type=='BBOX':
 
-            if format == 'yolo':
+            if format == 'yolov5':
                 asset_filename = self.asset['filename']
                 label_filename = os.path.splitext(asset_filename)[0] + '.txt'
                 label_location = os.path.join(location, 'labels', label_filename)
@@ -149,10 +338,122 @@ class Sample:
 
 class Project:
     
-    def __init__(self, client, **project_data):
+    def __init__(self, client, data):
         self.client = client
-        for key, value in project_data.items():
-            setattr(self, key, value)
+        self.data = data
+
+    @property
+    def uuid(self):
+        return self.data['uuid']
+
+    @property
+    def name(self):
+        return self.data['name']
+
+    @property
+    def description(self):
+        return self.data['description']
+
+    @property
+    def project_type(self):
+        return self.data['project_type']
+
+    @property
+    def thumbnail(self):
+        return self.data['thumbnail']
+
+    @property
+    def categories(self):
+        return self.data['categories']
+
+    @property
+    def annotation_type(self):
+        return self.data['annotation_type']
+
+    @property
+    def num_samples(self):
+        return self.data['num_samples']
+
+    @property
+    def model(self):
+        if self.data['model']:
+            return MLModel(self.client, self.data['model'])
+        else:
+            return None
+
+    @property
+    def prediction_model(self):
+        if self.data['prediction_model']:
+            return MLModel(self.client, self.data['prediction_model'])
+        else:
+            return None
+
+    @property
+    def samples(self):
+        sample_list = []
+        
+        page = 1
+        while(True):
+            try:
+                for data in self.client.get(f'/projects/{self.uuid}/samples/?page={page}'):
+                    sample_list.append(Sample(self.client, data))
+                page+=1
+            except:
+                break
+
+        return sample_list
+
+    @property
+    def owner(self):
+        return User(self.data['owner'])
+
+    @property
+    def collaborators(self):
+        return [User(data) for data in self.data['collaborators']]
+
+    @property
+    def public(self):
+        return self.data['public']
+
+    @property
+    def created_at(self):
+        return self.data['created_at']
+
+    @classmethod
+    def create(cls, client, name, categories, annotation_type, description=''):
+        payload = {
+            'name': name,
+            'description': description,
+            'categories': categories,
+            'annotation_type': annotation_type
+        }
+        data = client.post('/projects/', payload)
+
+        return cls(client, data)
+
+    @classmethod
+    def get_or_create(cls, client, name, owner=None, *args, **kwargs):
+        try:
+            project = cls.get_by_name(client, name, owner=owner)
+        except:
+            project = cls.create(client, name, *args, **kwargs)
+
+        return project
+
+    @classmethod
+    def get_by_uuid(cls, client, uuid):
+        data = client.get(f'/projects/{uuid}/')
+        return cls(client, data)
+
+    @classmethod
+    def get_by_name(cls, client, name, owner=None):
+        owner = owner if owner else client.owner.username
+        data = client.get(f'/projects/?name={name}&owner={owner}')
+        
+        if len(data) == 0:
+            raise Exception(f'Did not found project "{name}" for owner "{owner}". If this is a shared or public project, please specify the owner')
+
+        return cls(client, data[0])
 
     def pull(self, location='./', filter='LABELED', format=None):
         # make split
@@ -172,11 +473,6 @@ class Project:
             with Pool(8) as p:
                 inputs = zip(samples, repeat(project_loc))
                 r = p.starmap(Sample.pull_image, tqdm(inputs, total=len(samples)))
-
-            print('Loading labels')
-            with Pool(8) as p:
-                r = p.map(Sample.load_label, tqdm(samples, total=len(samples)))
-                samples = r
             
             print('Creating coco json file')
             images = []
@@ -210,7 +506,7 @@ class Project:
                 }
                 json.dump(coco, f)
 
-        elif format == 'yolo':
+        elif format == 'yolov5':
             image_loc = os.path.join(project_loc, 'images')
             label_loc = os.path.join(project_loc, 'labels')
 
@@ -219,7 +515,7 @@ class Project:
 
             print('Downloading your project...')
             with Pool(8) as p:
-                inputs = zip(samples, repeat(project_loc), repeat(self.annotation_type), repeat('yolo'))
+                inputs = zip(samples, repeat(project_loc), repeat(self.annotation_type), repeat('yolov5'))
                 r = p.starmap(Sample.pull, tqdm(inputs, total=len(samples)))
 
             # create train-val txt file
@@ -296,15 +592,10 @@ class Project:
 
             return project_loc
 
-    def push(self, image_list, label_list=None):
-        
-        print('Uploading data')
+    def push(self, image_list):
         with Pool(8) as p:
-            if label_list:
-                inputs = zip(repeat(self), image_list, label_list)
-            else:
-                inputs = zip(repeat(self), image_list)
-            r = p.starmap(Project.create_sample, tqdm(inputs, total=len(image_list)))
+            inputs = zip(repeat(self), image_list)
+            r = p.starmap(Project.add_sample, tqdm(inputs, total=len(image_list)))
 
     def get_samples(self, filter='LABELED'):
 
@@ -317,53 +608,16 @@ class Project:
             try:
                 endpoint = f'/projects/{self.uuid}/samples/?page={page}'
                 endpoint += query
-                for sample in self.client.get(endpoint):
-                    samples.append(Sample(self.client, **sample))
+                for data in self.client.get(endpoint):
+                    samples.append(Sample(self.client, data))
                 page+=1
             except:
                 break
         
         return samples
 
-    def create_sample(self, image_file, label_file=None, tags={}):
-        # create asset
-        filename = os.path.basename(image_file)
-        payload = {
-            'filename': filename,
-            'type': 'IMAGE'
-        }
-        asset_data = self.client.post(f'/assets/', payload=payload)
-
-        # upload file to s3
-        url = asset_data['presigned_post_fields']['url']
-        fields = asset_data['presigned_post_fields']['fields']
-        
-        with open(image_file, 'rb') as f:
-            response = requests.post(url, data=fields, files={'file':f})
-        
-        if response.status_code != 204:
-            raise Exception(f"Failed uploading to s3, status_code: {response.status_code}")
-
-        # confirm upload
-        self.client.put(f'/assets/{asset_data["uuid"]}/confirm_upload/')
-
-        # create sample
-        payload = {
-            'name': filename,
-            'asset': asset_data['uuid'],
-            'tags': tags
-        }
-        sample_data = self.client.post(f'/projects/{self.uuid}/samples/', payload)
-
-        sample = Sample(client=self.client, **sample_data)
-
-        # upload label
-        if label_file:
-            label = np.array(Image.open(label_file))
-            annotations = mask_utils.label_to_annotations(label)
-            sample.update_label(annotations)
-
-        return sample
+    def add_sample(self, image_file, tags={}):
+        return Sample.create(self.client, self.uuid, image_file, tags=tags)
 
     def make_split(self):
         return self.client.put(f'/projects/{self.uuid}/make_split/')
@@ -371,18 +625,29 @@ class Project:
     def delete(self):
         self.client.delete(f'/projects/{self.uuid}/')
 
+class User:
+    def __init__(self, data):
+        self.data = data
+
+    @property
+    def username(self):
+        return self.data['username']
+
+    @property
+    def email(self):
+        return self.data['email']
+
 class Client:
 
     def __init__(self, apikey, url="https://api.ml4vision.com"):
-
         self.url = url
         self.apikey = apikey
-        self.username, self.email = self.get_owner()
 
-    def get_owner(self):
-        owner = self.get('/auth/users/me')
-        return owner['username'], owner['email']
-
+    @property
+    def owner(self):
+        data = self.get('/auth/users/me')
+        return User(data)
+    
     def get(self, endpoint):
 
         response = requests.get(self.url + endpoint, headers=self._get_headers())
@@ -433,84 +698,4 @@ class Client:
         }
 
         return headers
-
-    def list_projects(self):
-        projects = []
-        
-        page=1
-        while(True):
-            try:
-                for project_data in self.get(f'/projects/?page={page}'):
-                    projects.append(Project(self, **project_data))
-                page+=1
-            except:
-                break
-        
-        return projects
-
-    def get_project_by_uuid(self, project_uuid):
-        project_data = self.get(f'/projects/{project_uuid}/')
-        return Project(self, **project_data)
-
-    def get_project_by_name(self, name, owner=None):
-        owner = owner if owner else self.username
-        project_data = self.get(f'/projects/?name={name}&owner={owner}')
-        
-        if len(project_data) == 0:
-            raise Exception(f'Did not found project "{name}" for owner "{owner}". If this is a shared or public project, please specify the owner')
-
-        return Project(self, **project_data[0])
-
-    def create_project(self, name, description='', categories=[{'id': 1, 'name': 'object'}] ,annotation_type='BBOX'):
-        payload = {
-            'name': name,
-            'description': description,
-        }
-        if categories:
-            payload['categories'] = categories
-        if annotation_type:
-            payload['annotation_type'] = annotation_type
-
-        project_data = self.post('/projects/', payload)
-        
-        return Project(self, **project_data)
-
-    def get_or_create_project(self, name, owner=None, **kwargs):
-        try:
-            project = self.get_project_by_name(name, owner)
-        except:
-            project = self.create_project(name, **kwargs)
-
-        return project
-
-    def get_model_by_name(self, name, owner=None):
-        owner = owner if owner else self.username
-        model_data = self.get(f'/models/?name={name}&owner={owner}')
-        
-        if len(model_data) == 0:
-            raise Exception(f'Did not found model "{name}" for owner "{owner}". If this is a shared or public model, please specify the owner')
-
-        return MLModel(self, **model_data[0])
-
-    def create_model(self, name, description='', project=None, categories=[] ,annotation_type='BBOX', architecture=''):
-        payload = {
-            'name': name,
-            'description': description,
-            'project': project,
-            'categories': categories,
-            'annotation_type': annotation_type,
-            'architecture': architecture
-        }
-
-        model_data = self.post('/models/', payload)
-
-        return MLModel(self, **model_data)
-
-    def get_or_create_model(self, name, owner=None, **kwargs):
-        try:
-            model = self.get_model_by_name(name,owner=owner)
-        except:
-            model = self.create_model(name, **kwargs)
-        
-        return model
 
