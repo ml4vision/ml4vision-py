@@ -4,7 +4,7 @@ from ml4vision.client import MLModel
 import yaml
 import re
 
-def upload_yolo_run(project, run_location='./runs/train', run=None, weights='best.pt', nms_threshold=0.45):
+def upload_yolo_run(project, run_location='./runs/train', run=None, weights='best.pt', threshold=0.25, nms_threshold=0.45):
     # exp path
     if run is None:
         # get latest exp
@@ -19,8 +19,12 @@ def upload_yolo_run(project, run_location='./runs/train', run=None, weights='bes
     # get result of best/last model
     csv_file = os.path.join(exp_path, 'results.csv')
     with open(csv_file, 'r') as f:
-        csv_list = [[val.strip() for val in r.split(",")] for r in f.readlines()][1:]
-        results = [{'precision': float(item[4]), 'recall':float(item[5]), 'map50':float(item[6]), 'map':float(item[7]), 'conf': float(item[-1])} for item in csv_list]
+        lines = [[val.strip() for val in r.split(",")] for r in f.readlines()]
+        headers, csv_list = lines[0], lines[1:]
+        if len(headers) == 15:
+            results = [{'precision': float(item[4]), 'recall':float(item[5]), 'map50':float(item[6]), 'map':float(item[7]), 'conf': float(item[-1])} for item in csv_list]
+        else:
+            results = [{'precision': float(item[4]), 'recall':float(item[5]), 'map50':float(item[6]), 'map':float(item[7])} for item in csv_list]
 
     if weights == 'best.pt':
         # find best result
@@ -50,6 +54,9 @@ def upload_yolo_run(project, run_location='./runs/train', run=None, weights='bes
         model = MLModel.create(
             project.client,
             f'{project.name}-model',
+            description='',
+            type='BBOX',
+            public = project.public,
             project=project.uuid
         )
     else:
@@ -59,11 +66,10 @@ def upload_yolo_run(project, run_location='./runs/train', run=None, weights='bes
     model.add_version(
         os.path.join(exp_path, 'weights', weights),
         categories=categories,
-        architecture='object_detection_fn',
+        architecture='yolov5',
         params={
-            'model_type': 'yolov5',
-            'min_size': opt['imgsz'],
-            'threshold': opt['conf'],
+            'img': opt['imgsz'],
+            'threshold': result.get('conf', threshold),
             'nms_threshold': nms_threshold
         },
         metrics={

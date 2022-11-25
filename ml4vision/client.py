@@ -153,11 +153,12 @@ class MLModel:
         return self.data['created_at']
 
     @classmethod
-    def create(cls, client, name, description='', type='BBOX', project=None):
+    def create(cls, client, name, description='', type='BBOX', public=False, project=None):
         payload = {
             'name': name,
             'description': description,
             'type': type,
+            'public': public,
             'project': project
         }
         data = client.post('/models/', payload)

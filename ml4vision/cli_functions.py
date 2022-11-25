@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from ml4vision.client import Client, Project
+from ml4vision.utils.yolov5 import upload_yolo_run
 import glob
 import sys
 
@@ -35,11 +36,11 @@ def authenticate(apikey):
         print('API Key is invalid.')
         sys.exit(1)
 
-def pull_project(name, format):
+def pull_project(name, path, format):
     client = _get_client() 
     try:   
         project = Project.get_by_name(client, name)
-        project.pull(format=format)
+        project.pull(location=path, format=format)
     except Exception as e:
         print(e)
         sys.exit(1)
@@ -63,6 +64,19 @@ def push_to_project(name, path):
 
         project.push(image_files)
 
+    except Exception as e:
+        print(e)
+        sys.exit(1)
+
+def add_model(name, type, run_location, run, threshold, nms_threshold):
+    client = _get_client()
+    try:
+        project = Project.get_by_name(client, name)
+        if type == 'yolov5':
+            upload_yolo_run(project, run_location=run_location, run=run, threshold=threshold, nms_threshold=nms_threshold)
+        else:
+            print(f'Type "{type}" is curently not supported. Options are: yolov5')
+            sys.exit(1)
     except Exception as e:
         print(e)
         sys.exit(1)

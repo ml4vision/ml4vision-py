@@ -25,9 +25,11 @@ def exec_command(args, parser):
 
     if args.command == "project": 
         if args.action == "pull":
-            cli_functions.pull_project(args.project, args.format)
+            cli_functions.pull_project(args.project, args.path, args.format)
         elif args.action == "push":
             cli_functions.push_to_project(args.project, args.path)
+        elif args.action == "add_model":
+            cli_functions.add_model(args.project, args.type, args.run_location, args.run, args.threshold, args.nms_threshold)
 
         
 if __name__ == "__main__":
